@@ -151,6 +151,24 @@ export interface FeedbackItem {
   updatedAt: number
 }
 
+/** One app in the inbox overview: its counts and newest entries for the current filter. */
+export interface InboxGroup {
+  appId: string
+  appName: string
+  newCount: number
+  total: number
+  items: FeedbackItem[]
+}
+
+/** A page of feedback, newest first. */
+export interface FeedbackPage {
+  items: FeedbackItem[]
+  total: number
+  newCount: number
+  page: number
+  pageSize: number
+}
+
 export interface FeedbackDetail extends FeedbackItem {
   setupLink: string | null
   issueLink: string | null

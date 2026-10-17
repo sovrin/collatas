@@ -13,7 +13,9 @@ import {
   countLastDay,
   getFeedback,
   issueLink,
-  listFeedback,
+  feedbackPage,
+  inboxOverview,
+  type InboxFilter,
   pruneFeedback,
   setStatus,
   setupLink,
@@ -21,6 +23,8 @@ import {
 import { checkToken, issueToken } from '../../server/core/token'
 
 const DAY = 24 * 60 * 60 * 1000
+const list = (db: DatabaseSync, filter: InboxFilter, app?: string) =>
+  feedbackPage(db, { app, filter, page: 1, pageSize: 100 }).items
 const dirs: string[] = []
 const dbs: DatabaseSync[] = []
 
@@ -102,7 +106,7 @@ describe('app settings', () => {
     updateApp(db, 'sonotas', { ...sonotas, enabled: false })
     expect(getApp(db, 'sonotas')?.enabled).toBe(false)
     expect(deleteApp(db, 'sonotas')).toBe(true)
-    expect(listFeedback(db, { filter: 'all' })).toEqual([])
+    expect(list(db, 'all')).toEqual([])
   })
 })
 
@@ -130,11 +134,43 @@ describe('submissions', () => {
     const id = addFeedback(db, 'sonotas', submission(), {}, now)
     addFeedback(db, 'sonotas', submission(), {}, now - 2 * DAY)
     expect(countLastDay(db, 'sonotas', now)).toBe(1)
-    expect(listFeedback(db, { filter: 'open' })).toHaveLength(2)
+    expect(list(db, 'open')).toHaveLength(2)
     setStatus(db, id, 'done')
-    expect(listFeedback(db, { filter: 'open' })).toHaveLength(1)
-    expect(listFeedback(db, { filter: 'done', app: 'sonotas' })[0]?.id).toBe(id)
+    expect(list(db, 'open')).toHaveLength(1)
+    expect(list(db, 'done', 'sonotas')[0]?.id).toBe(id)
     expect(getFeedback(db, id)?.appName).toBe('sonotas')
+  })
+})
+
+describe('inbox', () => {
+  it('groups by app, unread first, newest few each, with counts', () => {
+    const db = database()
+    createApp(db, sonotas)
+    createApp(db, { ...sonotas, id: 'quiet' })
+    createApp(db, { ...sonotas, id: 'empty' })
+    const now = 10 * DAY
+    for (let i = 0; i < 7; i++) {
+      const id = addFeedback(db, 'sonotas', submission({ message: `s${i}` }), {}, now - i * 1000)
+      if (i > 0) setStatus(db, id, 'seen')
+    }
+    // quiet was heard from last, but has nothing unread
+    const latest = addFeedback(db, 'quiet', submission({ message: 'q' }), {}, now + 1000)
+    setStatus(db, latest, 'seen')
+    const groups = inboxOverview(db, 'open', 5)
+    expect(groups.map((group) => group.appId)).toEqual(['sonotas', 'quiet'])
+    expect(groups[0]).toMatchObject({ newCount: 1, total: 7 })
+    expect(groups[0]!.items.map((item) => item.message)).toEqual(['s0', 's1', 's2', 's3', 's4'])
+    expect(inboxOverview(db, 'done', 5)).toEqual([])
+  })
+
+  it('pages one app, newest first, with the total', () => {
+    const db = database()
+    createApp(db, sonotas)
+    for (let i = 0; i < 7; i++) addFeedback(db, 'sonotas', submission({ message: `m${i}` }), {}, i)
+    const second = feedbackPage(db, { app: 'sonotas', filter: 'all', page: 2, pageSize: 3 })
+    expect(second.items.map((item) => item.message)).toEqual(['m3', 'm2', 'm1'])
+    expect(second).toMatchObject({ total: 7, newCount: 7, page: 2 })
+    expect(feedbackPage(db, { filter: 'all', page: 4, pageSize: 3 }).items).toEqual([])
   })
 })
 
@@ -151,7 +187,7 @@ describe('retention', () => {
     setStatus(db, forever, 'spam', old)
     expect(pruneFeedback(db, old + 31 * DAY)).toBe(1)
     expect(getFeedback(db, done)).toBeNull()
-    expect(listFeedback(db, { filter: 'all' })).toHaveLength(2)
+    expect(list(db, 'all')).toHaveLength(2)
   })
 })
 

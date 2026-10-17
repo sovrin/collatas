@@ -1,15 +1,20 @@
-import { STATUSES } from '#shared/contracts'
-import { listFeedback, type InboxFilter } from '../../core/feedback'
+import type { FeedbackPage } from '#shared/contracts'
+import { feedbackPage } from '../../core/feedback'
 import { requireOwner } from '../../utils/auth'
 import { collatasDatabase } from '../../utils/collatas'
+import { inboxFilter } from '../../utils/inbox'
 
-const FILTERS: readonly string[] = ['open', 'all', ...STATUSES]
+const PAGE_SIZE = 50
 
-export default defineEventHandler((event) => {
+export default defineEventHandler((event): FeedbackPage => {
   requireOwner(event)
   const query = getQuery(event)
-  const filter =
-    typeof query.filter === 'string' && FILTERS.includes(query.filter) ? query.filter : 'open'
   const app = typeof query.app === 'string' && query.app ? query.app : undefined
-  return listFeedback(collatasDatabase(), { app, filter: filter as InboxFilter })
+  const page = Math.max(1, Math.min(10_000, Math.floor(Number(query.page)) || 1))
+  return feedbackPage(collatasDatabase(), {
+    app,
+    filter: inboxFilter(event),
+    page,
+    pageSize: PAGE_SIZE,
+  })
 })

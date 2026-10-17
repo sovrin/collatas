@@ -1,6 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
-import type { AppConfig, FeedbackItem, Kind, Status, Submission } from '../../shared/contracts'
+import type {
+  AppConfig,
+  FeedbackItem,
+  FeedbackPage,
+  InboxGroup,
+  Kind,
+  Status,
+  Submission,
+} from '../../shared/contracts'
 
 const DAY = 24 * 60 * 60 * 1000
 const MAX_LINKS = 3
@@ -88,10 +96,8 @@ export function countLastDay(db: DatabaseSync, appId: string, now = Date.now()) 
 /** `open` is everything not yet dealt with: new and seen. */
 export type InboxFilter = 'open' | Status | 'all'
 
-export function listFeedback(
-  db: DatabaseSync,
-  { app, filter }: { app?: string; filter: InboxFilter },
-): FeedbackItem[] {
+/** The SQL condition for a filter, optionally for one app. */
+function matching(filter: InboxFilter, app?: string) {
   const where: string[] = []
   const params: string[] = []
   if (app) {
@@ -103,14 +109,73 @@ export function listFeedback(
     where.push('feedback.status = ?')
     params.push(filter)
   }
+  return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params }
+}
+
+/** The overview across apps: per app with matching feedback, its counts and newest `perApp`
+ *  entries. Apps with unread feedback come first, then the one heard from most recently. The
+ *  database does the grouping, so the overview stays this size however much feedback there is. */
+export function inboxOverview(db: DatabaseSync, filter: InboxFilter, perApp: number): InboxGroup[] {
+  const { where, params } = matching(filter)
+  const rows = db
+    .prepare(
+      `WITH matching AS (
+        SELECT feedback.*, apps.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
+        ${where}
+      ), ranked AS (
+        SELECT *, row_number() OVER (PARTITION BY app_id ORDER BY created_at DESC, id) AS rank
+        FROM matching
+      ), stats AS (
+        SELECT app_id, count(*) AS total, sum(status = 'new') AS new_count, max(created_at) AS newest
+        FROM matching GROUP BY app_id
+      )
+      SELECT ranked.*, stats.total, stats.new_count FROM ranked JOIN stats USING (app_id)
+      WHERE rank <= ?
+      ORDER BY stats.new_count > 0 DESC, stats.newest DESC, ranked.app_id, ranked.rank`,
+    )
+    .all(...params, perApp) as unknown as (FeedbackRow & { total: number; new_count: number })[]
+  const groups: InboxGroup[] = []
+  for (const row of rows) {
+    let group = groups.at(-1)
+    if (group?.appId !== row.app_id) {
+      group = {
+        appId: row.app_id,
+        appName: row.app_name,
+        newCount: row.new_count,
+        total: row.total,
+        items: [],
+      }
+      groups.push(group)
+    }
+    group.items.push(toItem(row))
+  }
+  return groups
+}
+
+/** One page of matching feedback, newest first, with how many match in all. */
+export function feedbackPage(
+  db: DatabaseSync,
+  {
+    app,
+    filter,
+    page,
+    pageSize,
+  }: { app?: string; filter: InboxFilter; page: number; pageSize: number },
+): FeedbackPage {
+  const { where, params } = matching(filter, app)
+  const { total, new_count } = db
+    .prepare(
+      `SELECT count(*) AS total, coalesce(sum(feedback.status = 'new'), 0) AS new_count
+      FROM feedback ${where}`,
+    )
+    .get(...params) as { total: number; new_count: number }
   const rows = db
     .prepare(
       `SELECT feedback.*, apps.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
-      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY feedback.created_at DESC LIMIT 500`,
+      ${where} ORDER BY feedback.created_at DESC, feedback.id LIMIT ? OFFSET ?`,
     )
-    .all(...params) as unknown as FeedbackRow[]
-  return rows.map(toItem)
+    .all(...params, pageSize, (page - 1) * pageSize) as unknown as FeedbackRow[]
+  return { items: rows.map(toItem), total, newCount: new_count, page, pageSize }
 }
 
 export function getFeedback(db: DatabaseSync, id: string): FeedbackItem | null {

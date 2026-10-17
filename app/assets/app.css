@@ -81,3 +81,10 @@ button.link[data-quiet] {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* A breadcrumb mixes sans words with mono app ids, whose boxes differ in height; centred they sit
+   at different heights, so line them up on the text instead.
+   shortcut: remove once aequitas' .breadcrumb aligns its items on the baseline. */
+.breadcrumb {
+  align-items: baseline;
+}

@@ -63,7 +63,16 @@ async function remove() {
     <div v-else-if="app" class="stack gap-6">
       <header class="cluster justify-between gap-4">
         <h1 class="text-l weight-600">{{ app.name }}</h1>
-        <NuxtLink :to="`/?app=${app.id}`" class="link text-s">Feedback</NuxtLink>
+        <NuxtLink
+          :to="`/?app=${app.id}`"
+          class="btn"
+          data-icon
+          data-size="s"
+          data-variant="ghost"
+          :aria-label="`Feedback for ${app.id}`"
+          :data-tip="`Feedback for ${app.id}`"
+          ><i class="icon" data-icon="inbox"></i
+        ></NuxtLink>
       </header>
 
       <div v-if="savedNotice" class="alert" data-tone="success" role="status">
@@ -74,8 +83,17 @@ async function remove() {
       <section class="stack gap-3" aria-labelledby="embed-title">
         <div class="cluster justify-between gap-4">
           <h2 id="embed-title" class="text-s weight-600">Embed</h2>
-          <button type="button" class="link text-s" @click="copy">
-            {{ copied ? 'Copied' : 'Copy' }}
+          <button
+            type="button"
+            class="btn"
+            data-icon
+            data-size="s"
+            data-variant="ghost"
+            :aria-label="copied ? 'Copied' : 'Copy the snippet'"
+            :data-tip="copied ? 'Copied' : 'Copy the snippet'"
+            @click="copy"
+          >
+            <i class="icon" :data-icon="copied ? 'check' : 'copy'"></i>
           </button>
         </div>
         <pre class="font-mono text-xs break-words"><code>{{ embed }}</code></pre>

@@ -201,8 +201,17 @@ async function save() {
               :aria-label="`Context field ${index + 1}: longest value`"
               style="inline-size: 6rem"
             />
-            <button type="button" class="link text-s" data-quiet @click="context.splice(index, 1)">
-              Remove
+            <button
+              type="button"
+              class="btn"
+              data-icon
+              data-size="s"
+              data-variant="ghost"
+              :aria-label="`Remove context field ${index + 1}`"
+              data-tip="Remove"
+              @click="context.splice(index, 1)"
+            >
+              <i class="icon" data-icon="x"></i>
             </button>
           </div>
           <span v-if="fieldError('context')" class="text-s text-danger">{{

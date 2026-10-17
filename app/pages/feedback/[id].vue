@@ -42,10 +42,10 @@ onMounted(() => {
   if (item.value?.status === 'new') setStatus('seen')
 })
 
-const NEXT: { status: Status; label: string }[] = [
-  { status: 'done', label: 'Mark done' },
-  { status: 'spam', label: 'Mark spam' },
-  { status: 'new', label: 'Mark unread' },
+const NEXT: { status: Status; label: string; icon: string }[] = [
+  { status: 'done', label: 'Mark done', icon: 'check' },
+  { status: 'spam', label: 'Mark spam', icon: 'ban' },
+  { status: 'new', label: 'Mark unread', icon: 'mail' },
 ]
 </script>
 
@@ -96,41 +96,61 @@ const NEXT: { status: Status; label: string }[] = [
         <div><strong>That did not work.</strong> {{ actionError }}</div>
       </div>
 
-      <div class="cluster gap-4 hairline-t pt-5">
+      <div class="cluster gap-1 hairline-t pt-4">
         <a
           v-if="item.setupLink"
           :href="item.setupLink"
           target="_blank"
           rel="noopener noreferrer"
-          class="link"
-          >Open setup</a
-        >
+          class="btn"
+          data-icon
+          data-size="s"
+          data-variant="ghost"
+          aria-label="Open the setup"
+          data-tip="Open the setup"
+          ><i class="icon" data-icon="external"></i
+        ></a>
         <a
           v-if="item.issueLink"
           :href="item.issueLink"
           target="_blank"
           rel="noopener noreferrer"
-          class="link"
-          >Make an issue</a
-        >
+          class="btn"
+          data-icon
+          data-size="s"
+          data-variant="ghost"
+          aria-label="Make a GitHub issue"
+          data-tip="Make a GitHub issue"
+          ><i class="icon" data-icon="circle-dot"></i
+        ></a>
         <button
           v-for="next in NEXT.filter((option) => option.status !== item!.status)"
           :key="next.status"
           type="button"
-          class="link"
-          data-quiet
+          class="btn"
+          data-icon
+          data-size="s"
+          data-variant="ghost"
+          :aria-label="next.label"
+          :data-tip="next.label"
           :disabled="pending"
           @click="setStatus(next.status)"
         >
-          {{ next.label }}
+          <i class="icon" :data-icon="next.icon"></i>
         </button>
         <button
           type="button"
-          class="link end text-danger"
+          class="btn end"
+          data-icon
+          data-size="s"
+          data-variant="ghost"
+          data-tone="danger"
+          aria-label="Delete"
+          data-tip="Delete"
           :disabled="pending"
           @click="deleteOpen = true"
         >
-          Delete
+          <i class="icon" data-icon="trash"></i>
         </button>
       </div>
     </div>
