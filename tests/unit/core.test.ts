@@ -20,6 +20,7 @@ import {
   type InboxFilter,
   pruneFeedback,
   pruneSenderKeys,
+  sameSenderCount,
   senderTag,
   setStatus,
 } from '../../server/core/feedback'
@@ -347,6 +348,11 @@ describe('sender tags', () => {
     expect(senderTag(db, 'sonotas', 'a', morning + DAY)).not.toBe(tag)
     const id = addFeedback(db, 'sonotas', submission(), { ...NOTHING, sender: tag })
     expect(getFeedback(db, id)?.sender).toBe(tag)
+    expect(sameSenderCount(db, getFeedback(db, id)!)).toBe(0)
+    const other = addFeedback(db, 'sonotas', submission(), { ...NOTHING, sender: tag })
+    expect(sameSenderCount(db, getFeedback(db, id)!)).toBe(1)
+    db.prepare('DELETE FROM feedback WHERE id = ?').run(other)
+    expect(sameSenderCount(db, getFeedback(db, id)!)).toBe(0)
     pruneSenderKeys(db, morning + DAY)
     expect(senderTag(db, 'sonotas', 'a', morning)).not.toBe(tag)
   })

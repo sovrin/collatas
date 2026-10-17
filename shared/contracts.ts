@@ -176,6 +176,8 @@ export interface FeedbackPage {
 
 export interface FeedbackDetail extends FeedbackItem {
   issueLink: string | null
+  /** Other entries with the same sender tag; the tag only means something when there are any. */
+  sameSender: number
 }
 
 /** What the inbox is searched for: words, each of which must appear. */

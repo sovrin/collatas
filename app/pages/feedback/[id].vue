@@ -111,7 +111,9 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
               class="link font-mono"
               >{{ item.sender }}</NuxtLink
             >
-            <span class="text-muted text-s"> · the same on their other feedback that day</span>
+            <span v-if="item.sameSender" class="text-muted text-s">
+              · the same on their other feedback that day</span
+            >
           </dd>
         </template>
         <template v-for="(value, key) in item.context" :key="key">

@@ -271,6 +271,18 @@ export function getFeedback(db: DatabaseSync, id: string): FeedbackItem | null {
   return row ? toItem(row) : null
 }
 
+/** How many other entries carry this one's sender tag: same app, same UTC day, any status. */
+export function sameSenderCount(db: DatabaseSync, item: FeedbackItem) {
+  if (!item.sender) return 0
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM feedback
+      WHERE app_id = ? AND sender = ? AND id <> ? AND created_at / ${DAY} = ?`,
+    )
+    .get(item.appId, item.sender, item.id, Math.floor(item.createdAt / DAY)) as { count: number }
+  return row.count
+}
+
 export function setStatus(db: DatabaseSync, id: string, status: Status, now = Date.now()) {
   return (
     db.prepare('UPDATE feedback SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id)
