@@ -289,9 +289,9 @@ function alert(tone: string, title: string, detail: string, action?: Node) {
 /** A sentence for a failure. A fetch that never got an answer it may read (offline, collatas
  *  down, or a site it does not know, which gets no CORS headers) only says "Failed to fetch". */
 function explain(error: unknown) {
-  if (error instanceof TypeError) return 'collatas could not be reached.'
+  if (error instanceof TypeError) return 'The feedback service could not be reached.'
   if (error instanceof DOMException && error.name === 'TimeoutError')
-    return 'collatas did not answer in time.'
+    return 'The feedback service did not answer in time.'
   return error instanceof Error ? error.message : ''
 }
 
@@ -299,9 +299,9 @@ function explain(error: unknown) {
 async function reason(response: Response) {
   try {
     const body = (await response.json()) as { statusMessage?: string; message?: string }
-    return body.statusMessage || body.message || `The server answered ${response.status}.`
+    return body.statusMessage || body.message || `The feedback service answered ${response.status}.`
   } catch {
-    return `The server answered ${response.status}.`
+    return `The feedback service answered ${response.status}.`
   }
 }
 
