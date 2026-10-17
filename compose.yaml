@@ -4,6 +4,7 @@
 name: collatas
 services:
   web:
+    container_name: collatas
     build:
       context: .
       target: web
