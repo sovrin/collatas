@@ -131,8 +131,15 @@ class CollatasForm extends HTMLElement {
       class: 'input',
       required: true,
       maxlength: String(rules.maxMessage),
+      'aria-describedby': id('message-left'),
     }) as HTMLTextAreaElement
     message.value = draft.message
+    // Not a live region: read with the field, not announced on every keystroke.
+    const left = h('small', { id: id('message-left') })
+    const count = () =>
+      (left.textContent = `${rules.maxMessage - message.value.length} of ${rules.maxMessage} characters left`)
+    count()
+    message.addEventListener('input', count)
     const email = h('input', {
       id: id('email'),
       class: 'input',
@@ -178,7 +185,13 @@ class CollatasForm extends HTMLElement {
           ...kinds,
         ),
       ),
-      h('div', { class: 'field' }, h('label', { for: id('message') }, 'Your message'), message),
+      h(
+        'div',
+        { class: 'field' },
+        h('label', { for: id('message') }, 'Your message'),
+        message,
+        left,
+      ),
       h(
         'div',
         { class: 'field' },
