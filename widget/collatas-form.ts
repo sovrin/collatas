@@ -11,6 +11,8 @@ import type { FormRules } from '../shared/contracts'
 
 // The collatas this script came from: rules are fetched and feedback sent there.
 const BASE = new URL(import.meta.url).origin
+// A collatas that takes the connection but never answers must not hold the form forever.
+const TIMEOUT = 10_000
 
 type Child = Node | string | false | null | undefined
 
@@ -61,22 +63,28 @@ class CollatasForm extends HTMLElement {
   private async load() {
     this.show(h('p', { class: 'text-muted', role: 'status' }, 'Loading the form…'))
     try {
-      const response = await fetch(`${BASE}/v1/apps/${encodeURIComponent(this.app)}/form`)
+      const response = await fetch(`${BASE}/v1/apps/${encodeURIComponent(this.appId)}/form`, {
+        signal: AbortSignal.timeout(TIMEOUT),
+      })
       if (!response.ok) throw new Error(await reason(response))
       this.rules = (await response.json()) as FormRules
       this.renderForm()
     } catch (error) {
+      // Not a fault of the person who opened it, so no coloured box: a quiet line, in the site's
+      // own words wherever the site has a palette of its own.
       this.show(
-        alert(
-          'warning',
-          'The feedback form is not available right now.',
-          error instanceof Error ? error.message : '',
+        h(
+          'p',
+          { class: 'text-muted', role: 'status' },
+          `The feedback form is not available right now. ${explain(error)}`,
         ),
       )
     }
   }
 
-  private get app() {
+  // Not `app`: frameworks such as Vue set a prop as a property when the element has one by that
+  // name, and a read-only getter would swallow it. As an attribute it is read here.
+  private get appId() {
     return this.getAttribute('app') ?? ''
   }
 
@@ -214,6 +222,7 @@ class CollatasForm extends HTMLElement {
         const response = await fetch(`${BASE}/v1/apps/${encodeURIComponent(rules.app)}/feedback`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
+          signal: AbortSignal.timeout(TIMEOUT),
           body: JSON.stringify({
             token: rules.token,
             kind,
@@ -241,9 +250,7 @@ class CollatasForm extends HTMLElement {
           )
           copy.textContent = 'Copied'
         })
-        status.replaceChildren(
-          alert('danger', 'Could not send.', error instanceof Error ? error.message : '', copy),
-        )
+        status.replaceChildren(alert('danger', 'Could not send.', explain(error), copy))
       } finally {
         send.removeAttribute('aria-busy')
         send.removeAttribute('disabled')
@@ -264,6 +271,15 @@ function alert(tone: string, title: string, detail: string, action?: Node) {
     h('div', {}, h('strong', {}, title), detail ? ` ${detail}` : ''),
     action,
   )
+}
+
+/** A sentence for a failure. A fetch that never got an answer it may read (offline, collatas
+ *  down, or a site it does not know, which gets no CORS headers) only says "Failed to fetch". */
+function explain(error: unknown) {
+  if (error instanceof TypeError) return 'collatas could not be reached.'
+  if (error instanceof DOMException && error.name === 'TimeoutError')
+    return 'collatas did not answer in time.'
+  return error instanceof Error ? error.message : ''
 }
 
 /** The server's own sentence for a refused request, or a plain fallback. */
