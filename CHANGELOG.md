@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.5](https://github.com/sovrin/collatas/compare/v0.2.4...v0.2.5) (2026-10-17)
+
+
+### Features
+
+* **form:** credit collatas in the caption, linked to the project ([54af93d](https://github.com/sovrin/collatas/commit/54af93da37302c63f06ed68082c4cb946c4fd088))
+
+
+### Bug Fixes
+
+* **form:** don't name collatas in errors visitors see ([ceee26a](https://github.com/sovrin/collatas/commit/ceee26ace9c2e131ee67fff4f78b0af0deb2b2a5))
+
 ## [0.2.4](https://github.com/sovrin/collatas/compare/v0.2.3...v0.2.4) (2026-10-17)
 
 
