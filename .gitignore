@@ -1,0 +1,15 @@
+node_modules/
+.nuxt/
+.output/
+dist/
+.data/
+.env
+.env.*
+!.env.example
+test-results/
+coverage/
+.DS_Store
+.idea/
+
+# built from widget/ by `pnpm build:widget`
+/public/v1/form.js
