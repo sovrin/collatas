@@ -110,6 +110,26 @@ export function consumeAttempt(
   })
 }
 
+/** The network a sender is counted by: an IPv6 address cut to its /64, which one connection
+ *  usually holds whole (otherwise every request could come from a new address); an IPv4
+ *  address, also one mapped into IPv6, as it is. */
+export function senderNetwork(address: string) {
+  const plain = address.replace(/%.*$/, '').toLowerCase()
+  if (!plain.includes(':')) return plain
+  if (plain.includes('.')) return plain.slice(plain.lastIndexOf(':') + 1)
+  const [head = '', tail] = plain.split('::')
+  const left = head ? head.split(':') : []
+  const right = tail ? tail.split(':') : []
+  const groups =
+    tail === undefined
+      ? left
+      : [...left, ...Array<string>(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right]
+  return `${groups
+    .slice(0, 4)
+    .map((group) => Number.parseInt(group || '0', 16).toString(16))
+    .join(':')}::/64`
+}
+
 /** Forgets windows that have run out, so no sender key outlives its limit. */
 export function pruneAttempts(db: DatabaseSync, now = Date.now()) {
   db.prepare('DELETE FROM rate_limits WHERE resets_at <= ?').run(now)

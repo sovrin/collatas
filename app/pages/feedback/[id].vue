@@ -103,6 +103,17 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
             }}</a>
           </dd>
         </template>
+        <template v-if="item.sender">
+          <dt>Sender</dt>
+          <dd>
+            <NuxtLink
+              :to="{ path: '/', query: { filter: 'all', q: item.sender } }"
+              class="link font-mono"
+              >{{ item.sender }}</NuxtLink
+            >
+            <span class="text-muted text-s"> · the same on their other feedback that day</span>
+          </dd>
+        </template>
         <template v-for="(value, key) in item.context" :key="key">
           <dt class="font-mono">{{ key }}</dt>
           <dd class="font-mono break-words">{{ value }}</dd>

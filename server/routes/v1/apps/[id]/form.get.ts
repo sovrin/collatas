@@ -1,4 +1,4 @@
-import { KIND_LABELS, MAX_MESSAGE, type FormRules } from '#shared/contracts'
+import { KIND_LABELS, type FormRules } from '#shared/contracts'
 import { secret } from '../../../../core/database'
 import { issueToken } from '../../../../core/token'
 import { routeApp } from '../../../../utils/auth'
@@ -12,7 +12,7 @@ export default defineEventHandler((event): FormRules => {
     app: app.id,
     name: app.name,
     kinds: app.kinds.map((value) => ({ value, label: KIND_LABELS[value] })),
-    maxMessage: MAX_MESSAGE,
+    maxMessage: app.maxMessage,
     context: app.context,
     sendPage: app.sendPage,
     token: issueToken(secret(collatasDatabase(), 'form-key'), app.id),

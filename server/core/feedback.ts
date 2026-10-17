@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHmac, randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 import type {
   AppConfig,
@@ -9,8 +9,10 @@ import type {
   Status,
   Submission,
 } from '../../shared/contracts'
+import { secret } from './database'
 
 const DAY = 24 * 60 * 60 * 1000
+const MB = 1024 * 1024
 const MAX_LINKS = 3
 
 interface FeedbackRow {
@@ -22,6 +24,7 @@ interface FeedbackRow {
   email: string | null
   context: string
   page: string | null
+  sender: string | null
   status: Status
   created_at: number
   updated_at: number
@@ -37,6 +40,7 @@ function toItem(row: FeedbackRow): FeedbackItem {
     email: row.email,
     context: JSON.parse(row.context),
     page: row.page,
+    sender: row.sender,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -56,6 +60,8 @@ export function acceptSubmission(
   submission: Submission,
 ): { error: string } | Accepted {
   if (!app.kinds.includes(submission.kind)) return { error: 'This kind is not offered.' }
+  if (submission.message.length > app.maxMessage)
+    return { error: `Keep the message to ${app.maxMessage} characters.` }
   if ((submission.message.match(/https?:\/\//g) ?? []).length > MAX_LINKS)
     return { error: `Use at most ${MAX_LINKS} links.` }
   const context: Record<string, string> = {}
@@ -85,13 +91,13 @@ export function addFeedback(
   db: DatabaseSync,
   appId: string,
   submission: Submission,
-  { context, page }: Accepted,
+  { context, page, sender = null }: Accepted & { sender?: string | null },
   now = Date.now(),
 ) {
   const id = randomUUID()
   db.prepare(
-    `INSERT INTO feedback (id, app_id, kind, message, email, context, page, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO feedback (id, app_id, kind, message, email, context, page, sender, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     appId,
@@ -100,10 +106,48 @@ export function addFeedback(
     submission.email || null,
     JSON.stringify(context),
     page,
+    sender,
     now,
     now,
   )
   return id
+}
+
+const dayKey = (now: number) => `sender-day:${new Date(now).toISOString().slice(0, 10)}`
+
+/** Tells one sender's feedback to an app apart from others' on the same UTC day, and no further:
+ *  the key changes every day and the old one is deleted, after which a tag leads back to no one.
+ *  `sender` is already a keyed hash; the address itself never gets here. */
+export function senderTag(db: DatabaseSync, appId: string, sender: string, now = Date.now()) {
+  return createHmac('sha256', secret(db, dayKey(now)))
+    .update(`${appId}:${sender}`)
+    .digest('hex')
+    .slice(0, 8)
+}
+
+/** Deletes the keys of past days, so their tags can no longer be matched to a sender. */
+export function pruneSenderKeys(db: DatabaseSync, now = Date.now()) {
+  db.prepare("DELETE FROM secrets WHERE name LIKE 'sender-day:%' AND name <> ?").run(dayKey(now))
+}
+
+/** The bytes of what people sent, summed over the feedback rows of a query. */
+export const STORED_BYTES = `coalesce(sum(length(CAST(feedback.message AS BLOB))
+  + coalesce(length(CAST(feedback.email AS BLOB)), 0) + length(CAST(feedback.context AS BLOB))
+  + coalesce(length(CAST(feedback.page AS BLOB)), 0)), 0)`
+
+/** What an app's feedback holds: how many entries, and the bytes people sent. */
+export function appUsage(db: DatabaseSync, appId: string) {
+  return db
+    .prepare(`SELECT count(*) AS count, ${STORED_BYTES} AS bytes FROM feedback WHERE app_id = ?`)
+    .get(appId) as { count: number; bytes: number }
+}
+
+/** At either cap, an app takes no more feedback until some is deleted or expires. */
+export function isFull(
+  app: Pick<AppConfig, 'maxFeedback' | 'maxStorageMb'>,
+  usage: { count: number; bytes: number },
+) {
+  return usage.count >= app.maxFeedback || usage.bytes >= app.maxStorageMb * MB
 }
 
 /** How many entries an app received in the last day: the cap against a flood. */
@@ -118,13 +162,24 @@ export function countLastDay(db: DatabaseSync, appId: string, now = Date.now()) 
 /** `open` is everything not yet dealt with: new and seen. */
 export type InboxFilter = 'open' | Status | 'all'
 
-/** The SQL condition for a filter, optionally for one app. */
-function matching(filter: InboxFilter, app?: string) {
+const SEARCHED = ['message', 'email', 'sender', 'context', 'page'].map(
+  (column) => `feedback.${column} LIKE ? ESCAPE '\\'`,
+)
+
+/** The SQL condition for a filter, optionally for one app and a search: every word must appear in
+ *  one of the searched columns, as part of a word too (a tag's start finds the tag). */
+// shortcut: LIKE scans every row, fine while retention keeps the table small (milliseconds at the
+// daily caps); move to an FTS5 index if searches ever get slow. Case folds for ASCII only.
+function matching(filter: InboxFilter, app?: string, search = '') {
   const where: string[] = []
   const params: string[] = []
   if (app) {
     where.push('feedback.app_id = ?')
     params.push(app)
+  }
+  for (const word of search.split(/\s+/).filter(Boolean)) {
+    where.push(`(${SEARCHED.join(' OR ')})`)
+    params.push(...SEARCHED.map(() => `%${word.replace(/[\\%_]/g, '\\$&')}%`))
   }
   if (filter === 'open') where.push("feedback.status IN ('new', 'seen')")
   else if (filter !== 'all') {
@@ -137,8 +192,13 @@ function matching(filter: InboxFilter, app?: string) {
 /** The overview across apps: per app with matching feedback, its counts and newest `perApp`
  *  entries. Apps with unread feedback come first, then the one heard from most recently. The
  *  database does the grouping, so the overview stays this size however much feedback there is. */
-export function inboxOverview(db: DatabaseSync, filter: InboxFilter, perApp: number): InboxGroup[] {
-  const { where, params } = matching(filter)
+export function inboxOverview(
+  db: DatabaseSync,
+  filter: InboxFilter,
+  perApp: number,
+  search = '',
+): InboxGroup[] {
+  const { where, params } = matching(filter, undefined, search)
   const rows = db
     .prepare(
       `WITH matching AS (
@@ -182,9 +242,10 @@ export function feedbackPage(
     filter,
     page,
     pageSize,
-  }: { app?: string; filter: InboxFilter; page: number; pageSize: number },
+    search,
+  }: { app?: string; filter: InboxFilter; page: number; pageSize: number; search?: string },
 ): FeedbackPage {
-  const { where, params } = matching(filter, app)
+  const { where, params } = matching(filter, app, search)
   const { total, new_count } = db
     .prepare(
       `SELECT count(*) AS total, coalesce(sum(feedback.status = 'new'), 0) AS new_count

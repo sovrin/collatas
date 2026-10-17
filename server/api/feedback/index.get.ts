@@ -2,7 +2,7 @@ import type { FeedbackPage } from '#shared/contracts'
 import { feedbackPage } from '../../core/feedback'
 import { requireOwner } from '../../utils/auth'
 import { collatasDatabase } from '../../utils/collatas'
-import { inboxFilter } from '../../utils/inbox'
+import { inboxFilter, inboxSearch } from '../../utils/inbox'
 
 const PAGE_SIZE = 50
 
@@ -16,5 +16,6 @@ export default defineEventHandler((event): FeedbackPage => {
     filter: inboxFilter(event),
     page,
     pageSize: PAGE_SIZE,
+    search: inboxSearch(event),
   })
 })

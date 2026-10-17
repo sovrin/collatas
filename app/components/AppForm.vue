@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AppConfig, ContextField } from '#shared/contracts'
-import { KIND_LABELS, KINDS } from '#shared/contracts'
+import { APP_LIMITS, KIND_LABELS, KINDS, MAX_MESSAGE } from '#shared/contracts'
 import { errorMessage } from '~/lib/format'
 
 /** Registers an app, or changes one. What the app's form offers and who may send it all lives
@@ -26,6 +26,9 @@ const context = ref<ContextField[]>(props.app?.context.map((field) => ({ ...fiel
 const sendPage = ref(props.app?.sendPage ?? true)
 const issueRepo = ref(props.app?.issueRepo ?? '')
 const retentionDays = ref(props.app?.retentionDays ?? 180)
+const maxMessage = ref(props.app?.maxMessage ?? APP_LIMITS.maxMessage)
+const maxFeedback = ref(props.app?.maxFeedback ?? APP_LIMITS.maxFeedback)
+const maxStorageMb = ref(props.app?.maxStorageMb ?? APP_LIMITS.maxStorageMb)
 const enabled = ref(props.app?.enabled ?? true)
 const moreOpen = ref(false)
 
@@ -56,6 +59,9 @@ async function save() {
     sendPage: sendPage.value,
     issueRepo: issueRepo.value,
     retentionDays: Number(retentionDays.value),
+    maxMessage: Number(maxMessage.value),
+    maxFeedback: Number(maxFeedback.value),
+    maxStorageMb: Number(maxStorageMb.value),
     enabled: enabled.value,
   }
   try {
@@ -164,7 +170,7 @@ async function save() {
         >
           More settings
         </button>
-        <span class="text-muted"> context, page address, GitHub, retention, pausing</span>
+        <span class="text-muted"> context, page address, GitHub, retention, limits, pausing</span>
       </p>
 
       <div v-show="moreOpen" id="more-settings" class="stack gap-5">
@@ -265,6 +271,67 @@ async function save() {
             <span class="text-s text-muted">days</span>
           </div>
           <small id="retention-help">After its last change; then it is deleted, read or not.</small>
+        </div>
+
+        <div class="field">
+          <label for="max-message">Longest message</label>
+          <div class="cluster gap-3 flex-nowrap">
+            <input
+              id="max-message"
+              v-model.number="maxMessage"
+              class="input font-mono text-s"
+              data-size="s"
+              type="number"
+              min="1"
+              :max="MAX_MESSAGE"
+              style="inline-size: 6rem"
+              :aria-invalid="!!fieldError('maxMessage') || undefined"
+            />
+            <span class="text-s text-muted">characters</span>
+          </div>
+          <span v-if="fieldError('maxMessage')" data-error>{{ fieldError('maxMessage') }}</span>
+        </div>
+
+        <div class="field">
+          <label for="max-feedback">Hold at most</label>
+          <div class="cluster gap-3 flex-nowrap">
+            <input
+              id="max-feedback"
+              v-model.number="maxFeedback"
+              class="input font-mono text-s"
+              data-size="s"
+              type="number"
+              min="1"
+              max="100000"
+              style="inline-size: 6rem"
+              :aria-invalid="!!fieldError('maxFeedback') || undefined"
+              aria-describedby="limits-help"
+            />
+            <span class="text-s text-muted">entries</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="max-storage">and at most</label>
+          <div class="cluster gap-3 flex-nowrap">
+            <input
+              id="max-storage"
+              v-model.number="maxStorageMb"
+              class="input font-mono text-s"
+              data-size="s"
+              type="number"
+              min="1"
+              max="10240"
+              style="inline-size: 6rem"
+              :aria-invalid="!!fieldError('maxStorageMb') || undefined"
+              aria-describedby="limits-help"
+            />
+            <span class="text-s text-muted">MB of text</span>
+          </div>
+          <small id="limits-help"
+            >When either is reached, the form turns feedback away until some is deleted or expires,
+            so a flood cannot fill the disk.</small
+          >
         </div>
 
         <label><input v-model="enabled" type="checkbox" /> Accept feedback</label>

@@ -1,7 +1,14 @@
 import { submissionSchema } from '#shared/contracts'
 import { consumeAttempt } from '../../../../core/auth'
 import { secret } from '../../../../core/database'
-import { acceptSubmission, addFeedback, countLastDay } from '../../../../core/feedback'
+import {
+  acceptSubmission,
+  addFeedback,
+  appUsage,
+  countLastDay,
+  isFull,
+  senderTag,
+} from '../../../../core/feedback'
 import { checkToken } from '../../../../core/token'
 import { requestSender, routeApp } from '../../../../utils/auth'
 import { collatasDatabase } from '../../../../utils/collatas'
@@ -17,22 +24,9 @@ export default defineEventHandler(async (event) => {
   const app = routeApp(event)
   if (!getHeader(event, 'content-type')?.startsWith('application/json'))
     throw createError({ statusCode: 415, statusMessage: 'Send application/json.' })
-  const sender = requestSender(event)
-  const retryAfter =
-    consumeAttempt(db, `send:${app.id}:${sender}`, PER_SENDER, 10 * 60 * 1000) ||
-    consumeAttempt(db, `send-day:${app.id}:${sender}`, PER_SENDER_DAY, DAY)
-  if (retryAfter) {
-    setHeader(event, 'Retry-After', retryAfter)
-    throw createError({
-      statusCode: 429,
-      statusMessage: 'You have sent a lot of feedback. Try again later.',
-    })
-  }
-  if (countLastDay(db, app.id) >= PER_DAY)
-    throw createError({
-      statusCode: 429,
-      statusMessage: 'This app has received a lot of feedback today. Try again tomorrow.',
-    })
+  // Every check that writes nothing comes first, so a request that would not be kept leaves no
+  // trace: only a submission about to be stored counts against its sender, and rate-limit rows
+  // can grow no faster than feedback itself.
   const body = submissionSchema.safeParse(await readBody(event))
   if (!body.success)
     throw createError({ statusCode: 400, statusMessage: body.error.issues[0]!.message })
@@ -51,7 +45,28 @@ export default defineEventHandler(async (event) => {
     })
   const accepted = acceptSubmission(app, body.data)
   if ('error' in accepted) throw createError({ statusCode: 400, statusMessage: accepted.error })
-  addFeedback(db, app.id, body.data, accepted)
+  if (countLastDay(db, app.id) >= PER_DAY)
+    throw createError({
+      statusCode: 429,
+      statusMessage: 'This app has received a lot of feedback today. Try again tomorrow.',
+    })
+  if (isFull(app, appUsage(db, app.id)))
+    throw createError({
+      statusCode: 507,
+      statusMessage: 'This app cannot take more feedback right now.',
+    })
+  const sender = requestSender(event)
+  const retryAfter =
+    consumeAttempt(db, `send:${app.id}:${sender}`, PER_SENDER, 10 * 60 * 1000) ||
+    consumeAttempt(db, `send-day:${app.id}:${sender}`, PER_SENDER_DAY, DAY)
+  if (retryAfter) {
+    setHeader(event, 'Retry-After', retryAfter)
+    throw createError({
+      statusCode: 429,
+      statusMessage: 'You have sent a lot of feedback. Try again later.',
+    })
+  }
+  addFeedback(db, app.id, body.data, { ...accepted, sender: senderTag(db, app.id, sender) })
   announceChange()
   setResponseStatus(event, 201)
   return { ok: true }

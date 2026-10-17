@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { getApp } from '../core/apps'
-import { consumeAuthAttempt, createSession, sessionOwner } from '../core/auth'
+import { consumeAuthAttempt, createSession, senderNetwork, sessionOwner } from '../core/auth'
 import { secret } from '../core/database'
 import { collatasDatabase, collatasOrigin } from './collatas'
 
@@ -34,7 +34,7 @@ export function requestSender(event: H3Event) {
     getRequestIP(event) ||
     'unknown'
   return createHmac('sha256', secret(collatasDatabase(), 'sender-key'))
-    .update(address)
+    .update(senderNetwork(address))
     .digest('base64url')
 }
 

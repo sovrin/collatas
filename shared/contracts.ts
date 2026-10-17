@@ -13,7 +13,10 @@ export const KIND_LABELS: Record<Kind, string> = {
 export const STATUSES = ['new', 'seen', 'done', 'spam'] as const
 export type Status = (typeof STATUSES)[number]
 
+/** The longest message any app may allow; each app sets its own, 1024 unless changed. */
 export const MAX_MESSAGE = 5000
+/** A new app's limits, each changeable per app. */
+export const APP_LIMITS = { maxMessage: 1024, maxFeedback: 1000, maxStorageMb: 512 } as const
 
 export const ownerCredentialsSchema = z
   .object({
@@ -93,6 +96,11 @@ export const appConfigSchema = z
       ),
     // Feedback is deleted this many days after its last change, whatever its status.
     retentionDays: z.number().int().min(1, 'Keep feedback at least a day.').max(3650),
+    maxMessage: z.number().int().min(1).max(MAX_MESSAGE, `At most ${MAX_MESSAGE} characters.`),
+    // An app holding this many entries, or this much of what people sent, takes no more until
+    // some is deleted or expires: the disk cannot fill up, whatever is sent.
+    maxFeedback: z.number().int().min(1).max(100_000),
+    maxStorageMb: z.number().int().min(1).max(10_240),
     enabled: z.boolean(),
   })
   .strict()
@@ -101,6 +109,8 @@ export type AppConfig = z.infer<typeof appConfigSchema>
 export interface AppSummary extends AppConfig {
   newCount: number
   totalCount: number
+  /** At one of its caps: its form turns feedback away. */
+  full: boolean
 }
 
 /** What a site posts. Context keys and lengths are checked against the app afterwards. */
@@ -139,6 +149,8 @@ export interface FeedbackItem {
   email: string | null
   context: Record<string, string>
   page: string | null
+  /** The same for one sender's feedback to this app on one day; null before it was recorded. */
+  sender: string | null
   status: Status
   createdAt: number
   updatedAt: number
@@ -165,5 +177,9 @@ export interface FeedbackPage {
 export interface FeedbackDetail extends FeedbackItem {
   issueLink: string | null
 }
+
+/** What the inbox is searched for: words, each of which must appear. */
+export const MAX_SEARCH = 100
+export const searchSchema = z.string().trim().max(MAX_SEARCH)
 
 export const statusSchema = z.object({ status: z.enum(STATUSES) }).strict()

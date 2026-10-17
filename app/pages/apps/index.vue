@@ -28,11 +28,17 @@ useLive(refresh)
               data-quiet
               >{{ app.id }}</NuxtLink
             >
-            <!-- Colour only where the owner is needed: unread feedback. -->
+            <!-- Colour only where the owner is needed: unread feedback, and an app so full that
+                 its form turns feedback away. -->
             <NuxtLink v-if="app.newCount" :to="`/?app=${app.id}`" class="link text-warning"
               >{{ app.newCount }} new</NuxtLink
             >
-            <span v-else class="text-muted">{{ app.enabled ? 'accepting' : 'paused' }}</span>
+            <NuxtLink v-if="app.full" :to="`/apps/${app.id}`" class="link text-warning"
+              >full</NuxtLink
+            >
+            <span v-else-if="!app.newCount" class="text-muted">{{
+              app.enabled ? 'accepting' : 'paused'
+            }}</span>
           </div>
           <p class="ps-4 font-mono text-xs text-muted break-words">
             {{ app.origins.join(' · ') }}

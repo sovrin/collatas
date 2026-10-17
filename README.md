@@ -79,8 +79,15 @@ collatas.example.com {
 Put nothing else (a CDN) in front of the proxy without changing how the sender is read. The image
 runs as an unprivileged user on Alpine with only the node binary (about 130 MB unpacked).
 
+Each app also caps what it holds: by default messages of at most 1024 characters, at most 1000
+entries and 512 MB of text. A full app's form turns feedback away until some is deleted or expires,
+so a flood cannot fill the disk; the apps list marks it `full`. Each limit is set per app.
+
 Feedback of every status is deleted after its app's retention (180 days unless set, at most 3650),
-counted from its last change.
+counted from its last change. Each feedback shows a short sender tag, the same for one sender's
+feedback to one app on one UTC day; its key is deleted the next day, after which the tag leads back
+to no one. The inbox searches messages, emails, sender tags, context and pages; a
+sender tag links to its search.
 
 Data lives in the `collatas-data` volume (`collatas.sqlite`); back it up and never
 `docker compose down -v`. Forgot the password? `pnpm owner:reset --confirm` (with

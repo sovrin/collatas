@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
-const VERSION = 2
+const VERSION = 4
 
 export function openDatabase(dataDir: string) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
@@ -42,6 +42,17 @@ export function openDatabase(dataDir: string) {
       db.exec(
         'UPDATE apps SET retention_days = 3650 WHERE retention_days = 0; PRAGMA user_version = 2;',
       )
+    // A short tag telling one sender's feedback apart on one day (see senderTag).
+    if (version < 3)
+      db.exec('ALTER TABLE feedback ADD COLUMN sender TEXT; PRAGMA user_version = 3;')
+    // Per-app limits on the message and on what an app's feedback may hold.
+    if (version < 4)
+      db.exec(`
+      ALTER TABLE apps ADD COLUMN max_message INTEGER NOT NULL DEFAULT 1024;
+      ALTER TABLE apps ADD COLUMN max_feedback INTEGER NOT NULL DEFAULT 1000;
+      ALTER TABLE apps ADD COLUMN max_storage_mb INTEGER NOT NULL DEFAULT 512;
+      PRAGMA user_version = 4;
+    `)
   })
   return db
 }

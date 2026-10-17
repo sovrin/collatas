@@ -5,18 +5,22 @@ import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { appConfigSchema, type AppConfig, type Submission } from '../../shared/contracts'
 import { createApp, deleteApp, getApp, listApps, updateApp } from '../../server/core/apps'
-import { consumeAttempt, consumeAuthAttempt } from '../../server/core/auth'
+import { consumeAttempt, consumeAuthAttempt, senderNetwork } from '../../server/core/auth'
 import { openDatabase, secret } from '../../server/core/database'
 import {
   acceptSubmission,
   addFeedback,
+  appUsage,
   countLastDay,
   getFeedback,
   issueLink,
   feedbackPage,
   inboxOverview,
+  isFull,
   type InboxFilter,
   pruneFeedback,
+  pruneSenderKeys,
+  senderTag,
   setStatus,
 } from '../../server/core/feedback'
 import { checkToken, issueToken } from '../../server/core/token'
@@ -53,6 +57,9 @@ const sonotas: AppConfig = {
   sendPage: true,
   issueRepo: 'sovrin/sonotas',
   retentionDays: 30,
+  maxMessage: 1024,
+  maxFeedback: 1000,
+  maxStorageMb: 512,
   enabled: true,
 }
 
@@ -127,6 +134,33 @@ describe('submissions', () => {
     expect(
       acceptSubmission(sonotas, submission({ message: 'https://a https://b https://c https://d' })),
     ).toHaveProperty('error')
+    expect(acceptSubmission(sonotas, submission({ message: 'x'.repeat(1024) }))).not.toHaveProperty(
+      'error',
+    )
+    expect(
+      acceptSubmission({ ...sonotas, maxMessage: 10 }, submission({ message: 'x'.repeat(11) })),
+    ).toHaveProperty('error')
+  })
+
+  it("stop at an app's cap on entries or on what they hold, and show it as full", () => {
+    const db = database()
+    createApp(db, { ...sonotas, maxFeedback: 2 })
+    expect(appUsage(db, 'sonotas')).toEqual({ count: 0, bytes: 0 })
+    addFeedback(db, 'sonotas', submission({ message: 'äb' }), {
+      context: { version: '1' },
+      page: 'https://sonotas.example.com/',
+    })
+    // 3 bytes of message, 15 of context JSON, 28 of page
+    expect(appUsage(db, 'sonotas')).toEqual({ count: 1, bytes: 46 })
+    expect(listApps(db)[0]?.full).toBe(false)
+    addFeedback(db, 'sonotas', submission(), NOTHING)
+    expect(listApps(db)[0]?.full).toBe(true)
+    expect(isFull({ maxFeedback: 10, maxStorageMb: 1 }, { count: 1, bytes: 1024 * 1024 })).toBe(
+      true,
+    )
+    expect(isFull({ maxFeedback: 10, maxStorageMb: 1 }, { count: 9, bytes: 1024 * 1024 - 1 })).toBe(
+      false,
+    )
   })
 
   it('are counted per day, filtered in the inbox and change status', () => {
@@ -183,6 +217,35 @@ describe('inbox', () => {
   })
 })
 
+describe('search', () => {
+  it('finds every word anywhere searched, a tag by its start, and takes % and _ literally', () => {
+    const db = database()
+    createApp(db, sonotas)
+    createApp(db, { ...sonotas, id: 'other' })
+    const add = (app: string, overrides: Partial<Submission>, sender: string | null = null) =>
+      addFeedback(db, app, submission(overrides), {
+        context: { version: '0.2.0' },
+        page: null,
+        sender,
+      })
+    const stall = add('sonotas', { message: 'Export stalls at 80%' }, '6a57ef8e')
+    const dialog = add('sonotas', { message: 'Dialog hides the panel', email: 'pat@example.com' })
+    add('other', { message: 'Export works fine' })
+    const find = (search: string, app?: string) =>
+      feedbackPage(db, { app, filter: 'all', page: 1, pageSize: 100, search }).items.map(
+        (item) => item.id,
+      )
+    expect(find('export STALL')).toEqual([stall])
+    expect(find('6a57')).toEqual([stall])
+    expect(find('pat@example')).toEqual([dialog])
+    expect(find('0.2.0', 'sonotas')).toHaveLength(2)
+    expect(find('80%')).toEqual([stall])
+    expect(find('8_%')).toEqual([])
+    expect(find('export')).toHaveLength(2)
+    expect(inboxOverview(db, 'all', 5, 'export').map((group) => group.total)).toEqual([1, 1])
+  })
+})
+
 describe('retention', () => {
   it('deletes feedback of every status past the app retention since its last change', () => {
     const db = database()
@@ -207,11 +270,21 @@ describe('retention', () => {
     dirs.push(dir)
     const before = openDatabase(dir)
     createApp(before, { ...sonotas, retentionDays: 1 })
-    before.exec('UPDATE apps SET retention_days = 0; PRAGMA user_version = 1;')
+    // back to how a version 1 database looked
+    before.exec(
+      `UPDATE apps SET retention_days = 0; ALTER TABLE feedback DROP COLUMN sender;
+      ALTER TABLE apps DROP COLUMN max_message; ALTER TABLE apps DROP COLUMN max_feedback;
+      ALTER TABLE apps DROP COLUMN max_storage_mb; PRAGMA user_version = 1;`,
+    )
     before.close()
     const db = openDatabase(dir)
     dbs.push(db)
-    expect(getApp(db, 'sonotas')?.retentionDays).toBe(3650)
+    expect(getApp(db, 'sonotas')).toMatchObject({
+      retentionDays: 3650,
+      maxMessage: 1024,
+      maxFeedback: 1000,
+      maxStorageMb: 512,
+    })
   })
 })
 
@@ -248,6 +321,7 @@ describe('links', () => {
       email: 'someone@example.com',
       context: { version: '0.2.0' },
       page: null,
+      sender: null,
       status: 'new',
       createdAt: 0,
       updatedAt: 0,
@@ -257,6 +331,24 @@ describe('links', () => {
     expect(url.searchParams.get('title')).toBe('Export stalls')
     expect(url.searchParams.get('body')).toContain('version: `0.2.0`')
     expect(link).not.toContain('someone')
+  })
+})
+
+describe('sender tags', () => {
+  it('match within an app and a day only, and stop matching once the day key is gone', () => {
+    const db = database()
+    createApp(db, sonotas)
+    const morning = 10 * DAY + 1000
+    const tag = senderTag(db, 'sonotas', 'a', morning)
+    expect(tag).toMatch(/^[0-9a-f]{8}$/)
+    expect(senderTag(db, 'sonotas', 'a', morning + 60_000)).toBe(tag)
+    expect(senderTag(db, 'sonotas', 'b', morning)).not.toBe(tag)
+    expect(senderTag(db, 'other', 'a', morning)).not.toBe(tag)
+    expect(senderTag(db, 'sonotas', 'a', morning + DAY)).not.toBe(tag)
+    const id = addFeedback(db, 'sonotas', submission(), { ...NOTHING, sender: tag })
+    expect(getFeedback(db, id)?.sender).toBe(tag)
+    pruneSenderKeys(db, morning + DAY)
+    expect(senderTag(db, 'sonotas', 'a', morning)).not.toBe(tag)
   })
 })
 
@@ -276,6 +368,16 @@ describe('rate limits and secrets', () => {
     expect(consumeAuthAttempt(db, 'login', 'b', 0)).toBe(0)
     for (let i = 0; i < 89; i++) consumeAuthAttempt(db, 'login', `s${i}`, 0)
     expect(consumeAuthAttempt(db, 'login', 'c', 0)).toBeGreaterThan(0)
+  })
+
+  it('count an IPv6 sender by its /64, and IPv4 as it is', () => {
+    expect(senderNetwork('2001:db8:1:2:a:b:c:d')).toBe('2001:db8:1:2::/64')
+    expect(senderNetwork('2001:db8:1:2::5')).toBe('2001:db8:1:2::/64')
+    expect(senderNetwork('2001:DB8::5')).toBe('2001:db8:0:0::/64')
+    expect(senderNetwork('2001:db8:0:0:ffff::1')).toBe(senderNetwork('2001:db8::2'))
+    expect(senderNetwork('fe80::1%eth0')).toBe('fe80:0:0:0::/64')
+    expect(senderNetwork('203.0.113.7')).toBe('203.0.113.7')
+    expect(senderNetwork('::ffff:203.0.113.7')).toBe('203.0.113.7')
   })
 
   it('keep a secret once created', () => {

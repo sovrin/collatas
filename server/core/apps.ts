@@ -1,6 +1,7 @@
 // The registered apps: who may send feedback, and what the form offers them.
 import type { DatabaseSync } from 'node:sqlite'
 import type { AppConfig, AppSummary } from '../../shared/contracts'
+import { isFull, STORED_BYTES } from './feedback'
 
 interface AppRow {
   id: string
@@ -11,6 +12,9 @@ interface AppRow {
   send_page: number
   issue_repo: string
   retention_days: number
+  max_message: number
+  max_feedback: number
+  max_storage_mb: number
   enabled: number
 }
 
@@ -24,6 +28,9 @@ function toConfig(row: AppRow): AppConfig {
     sendPage: row.send_page === 1,
     issueRepo: row.issue_repo,
     retentionDays: row.retention_days,
+    maxMessage: row.max_message,
+    maxFeedback: row.max_feedback,
+    maxStorageMb: row.max_storage_mb,
     enabled: row.enabled === 1,
   }
 }
@@ -33,15 +40,24 @@ export function listApps(db: DatabaseSync): AppSummary[] {
     .prepare(
       `SELECT apps.*,
         (SELECT count(*) FROM feedback WHERE app_id = apps.id AND status = 'new') AS new_count,
-        (SELECT count(*) FROM feedback WHERE app_id = apps.id) AS total_count
+        (SELECT count(*) FROM feedback WHERE app_id = apps.id) AS total_count,
+        (SELECT ${STORED_BYTES} FROM feedback WHERE app_id = apps.id) AS stored_bytes
       FROM apps ORDER BY name COLLATE NOCASE`,
     )
-    .all() as unknown as (AppRow & { new_count: number; total_count: number })[]
-  return rows.map((row) => ({
-    ...toConfig(row),
-    newCount: row.new_count,
-    totalCount: row.total_count,
-  }))
+    .all() as unknown as (AppRow & {
+    new_count: number
+    total_count: number
+    stored_bytes: number
+  })[]
+  return rows.map((row) => {
+    const app = toConfig(row)
+    return {
+      ...app,
+      newCount: row.new_count,
+      totalCount: row.total_count,
+      full: isFull(app, { count: row.total_count, bytes: row.stored_bytes }),
+    }
+  })
 }
 
 export function getApp(db: DatabaseSync, id: string): AppConfig | null {
@@ -58,6 +74,9 @@ function values(app: AppConfig) {
     app.sendPage ? 1 : 0,
     app.issueRepo,
     app.retentionDays,
+    app.maxMessage,
+    app.maxFeedback,
+    app.maxStorageMb,
     app.enabled ? 1 : 0,
   ] as const
 }
@@ -68,8 +87,9 @@ export function createApp(db: DatabaseSync, app: AppConfig, now = Date.now()) {
     db
       .prepare(
         `INSERT OR IGNORE INTO apps
-          (id, name, origins, kinds, context, send_page, issue_repo, retention_days, enabled, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, name, origins, kinds, context, send_page, issue_repo, retention_days, max_message,
+            max_feedback, max_storage_mb, enabled, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(app.id, ...values(app), now, now).changes === 1
   )
@@ -81,7 +101,8 @@ export function updateApp(db: DatabaseSync, id: string, app: AppConfig, now = Da
     db
       .prepare(
         `UPDATE apps SET name = ?, origins = ?, kinds = ?, context = ?, send_page = ?,
-          issue_repo = ?, retention_days = ?, enabled = ?, updated_at = ?
+          issue_repo = ?, retention_days = ?, max_message = ?, max_feedback = ?,
+          max_storage_mb = ?, enabled = ?, updated_at = ?
         WHERE id = ?`,
       )
       .run(...values(app), now, id).changes === 1

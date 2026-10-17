@@ -24,7 +24,7 @@ Conventions for working on collatas, in code and in the interface.
   `app/assets/app.css` holds only what aequitas lacks, with tokens only.
 - The look: one centred small column hanging from the top, compact density, square
   corners, no cards, panels or sidebar. Colour only reports state, always next to a word: `new`
-  feedback is the one state that needs the owner. Identifiers, origins and context values are
+  feedback and a `full` app are the states that need the owner. Identifiers, origins and context values are
   mono. Text actions first, at most one primary button per view.
 - Lint changed Vue files: `node ../aequitas/dist/aequitas-check.mjs --css app/assets/app.css <files>`.
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AppSummary, FeedbackPage, InboxGroup } from '#shared/contracts'
-import { KIND_LABELS } from '#shared/contracts'
+import { KIND_LABELS, MAX_SEARCH } from '#shared/contracts'
 import { excerpt, feedbackStates, kindIcons } from '~/lib/feedback'
 import { errorMessage, formatAge } from '~/lib/format'
 
@@ -17,13 +17,14 @@ const filter = computed(() =>
 )
 const app = computed(() => (typeof route.query.app === 'string' ? route.query.app : ''))
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
-const view = computed(() => `${filter.value}|${app.value}|${page.value}`)
+const q = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
+const view = computed(() => `${filter.value}|${app.value}|${page.value}|${q.value}`)
 useHead({ title: () => `${app.value ? `${app.value} · ` : ''}Inbox · collatas` })
 
 // Across all apps the server sends each app's counts and newest few; one app's view is paged.
 const { data, error, refresh } = await useFetch<InboxGroup[] | FeedbackPage>(
   () => (app.value ? '/api/feedback' : '/api/inbox'),
-  { query: { filter, app, page } },
+  { query: { filter, app, page, q } },
 )
 const { data: apps } = await useFetch<AppSummary[]>('/api/apps')
 useLive(refresh)
@@ -49,19 +50,25 @@ const pages = computed(() =>
   paged.value ? Math.max(1, Math.ceil(paged.value.total / paged.value.pageSize)) : 1,
 )
 
-/** The inbox address for a filter, app or page, leaving out the defaults. A new filter or app
+/** The inbox address for a filter, app, page or search, leaving out the defaults. Anything new
  *  starts on the first page. */
-function inbox(next: { filter?: string; app?: string; page?: number }) {
-  const query = { filter: filter.value, app: app.value, page: 1, ...next }
+function inbox(next: { filter?: string; app?: string; page?: number; q?: string }) {
+  const query = { filter: filter.value, app: app.value, page: 1, q: q.value, ...next }
   return {
     path: '/',
     query: {
       ...(query.filter !== 'open' ? { filter: query.filter } : {}),
       ...(query.app ? { app: query.app } : {}),
+      ...(query.q ? { q: query.q } : {}),
       ...(query.page > 1 ? { page: String(query.page) } : {}),
     },
   }
 }
+
+// The field follows the address (back button, the sender link), and searches on Enter or clear.
+const searchText = ref(q.value)
+watch(q, (value) => (searchText.value = value))
+const search = () => navigateTo(inbox({ q: searchText.value.trim() }))
 
 /** "4 open", "2 done", "7 in total": what a group holds when nothing in it is new. */
 const countLabel = (count: number) =>
@@ -70,9 +77,11 @@ const countLabel = (count: number) =>
 const empty = computed(() =>
   !apps.value?.length
     ? 'Nothing yet. Register an app under Apps and embed its form.'
-    : filter.value === 'open'
-      ? 'All read. New feedback shows up here.'
-      : 'Nothing here.',
+    : q.value
+      ? `Nothing matches “${q.value}” here.`
+      : filter.value === 'open'
+        ? 'All read. New feedback shows up here.'
+        : 'Nothing here.',
 )
 </script>
 
@@ -85,17 +94,32 @@ const empty = computed(() =>
         <li aria-current="page" class="font-mono">{{ app }}</li>
       </ol>
     </nav>
-    <span class="cluster gap-3 text-s" role="group" aria-label="Show">
-      <NuxtLink
-        v-for="option in FILTERS"
-        :key="option.value"
-        :to="inbox({ filter: option.value })"
-        class="link"
-        :data-quiet="filter === option.value ? undefined : ''"
-        :aria-current="filter === option.value ? 'page' : undefined"
-        >{{ option.label }}</NuxtLink
-      >
-    </span>
+    <div class="cluster justify-between gap-4">
+      <span class="cluster gap-3 text-s" role="group" aria-label="Show">
+        <NuxtLink
+          v-for="option in FILTERS"
+          :key="option.value"
+          :to="inbox({ filter: option.value })"
+          class="link"
+          :data-quiet="filter === option.value ? undefined : ''"
+          :aria-current="filter === option.value ? 'page' : undefined"
+          >{{ option.label }}</NuxtLink
+        >
+      </span>
+      <form role="search" @submit.prevent="search">
+        <input
+          v-model="searchText"
+          class="input text-s"
+          data-size="s"
+          type="search"
+          placeholder="Search"
+          aria-label="Search feedback: words, a sender tag, an email"
+          :maxlength="MAX_SEARCH"
+          style="inline-size: 12rem"
+          @search="search"
+        />
+      </form>
+    </div>
 
     <div v-if="error" class="alert" data-tone="danger" role="alert">
       <div><strong>Could not load the inbox.</strong> {{ errorMessage(error) }}</div>
