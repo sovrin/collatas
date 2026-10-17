@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.1](https://github.com/sovrin/collatas/compare/v0.2.0...v0.2.1) (2026-10-17)
+
+
+### Features
+
+* **retention:** feedback of every status is deleted after its app's retention ([f61dcc5](https://github.com/sovrin/collatas/commit/f61dcc52665d5340f70cc799869dad0f77000bec))
+
+
+### Bug Fixes
+
+* **feedback:** drop the fragment from the page address, where tokens often live ([f61dcc5](https://github.com/sovrin/collatas/commit/f61dcc52665d5340f70cc799869dad0f77000bec))
+* **security:** a Content-Security-Policy for objects, base, framing and forms ([f61dcc5](https://github.com/sovrin/collatas/commit/f61dcc52665d5340f70cc799869dad0f77000bec))
+* **security:** rate limits per sender, without storing addresses ([f61dcc5](https://github.com/sovrin/collatas/commit/f61dcc52665d5340f70cc799869dad0f77000bec))
+
 ## [0.2.0](https://github.com/sovrin/collatas/compare/v0.1.0...v0.2.0) (2026-10-17)
 
 
