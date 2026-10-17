@@ -14,6 +14,7 @@ export default defineEventHandler((event): FormRules => {
     kinds: app.kinds.map((value) => ({ value, label: KIND_LABELS[value] })),
     maxMessage: MAX_MESSAGE,
     context: app.context,
+    sendPage: app.sendPage,
     token: issueToken(secret(collatasDatabase(), 'form-key'), app.id),
   }
 })

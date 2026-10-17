@@ -8,6 +8,13 @@ const id = route.params.id as string
 const { data: item, error, refresh } = await useFetch<FeedbackDetail>(`/api/feedback/${id}`)
 useHead({ title: () => `${item.value ? KIND_LABELS[item.value.kind] : 'Feedback'} · collatas` })
 
+const router = useRouter()
+/** The inbox view this entry was opened from (the overview, or one app's page), else the overview. */
+function inboxBack() {
+  const back = router.options.history.state.back
+  return typeof back === 'string' && /^\/(\?|$)/.test(back) ? back : '/'
+}
+
 const pending = ref(false)
 const actionError = ref('')
 const deleteOpen = ref(false)
@@ -17,6 +24,8 @@ async function setStatus(status: Status) {
   actionError.value = ''
   try {
     await $fetch(`/api/feedback/${id}/status`, { method: 'POST', body: { status } })
+    // Unread means "not now": straight back to the inbox, where it shows as new again.
+    if (status === 'new') return await navigateTo(inboxBack())
     await refresh()
   } catch (cause) {
     actionError.value = errorMessage(cause)
@@ -30,7 +39,7 @@ async function remove() {
   actionError.value = ''
   try {
     await $fetch(`/api/feedback/${id}/delete`, { method: 'POST', body: {} })
-    await navigateTo('/')
+    await navigateTo(inboxBack())
   } catch (cause) {
     actionError.value = errorMessage(cause)
     pending.value = false
@@ -45,7 +54,7 @@ onMounted(() => {
 const NEXT: { status: Status; label: string; icon: string }[] = [
   { status: 'done', label: 'Mark done', icon: 'check' },
   { status: 'spam', label: 'Mark spam', icon: 'ban' },
-  { status: 'new', label: 'Mark unread', icon: 'mail' },
+  { status: 'new', label: 'Mark unread and go back', icon: 'mail' },
 ]
 </script>
 
@@ -86,6 +95,14 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
           <a v-if="item.email" :href="`mailto:${item.email}`" class="link">{{ item.email }}</a>
           <span v-else class="text-muted">no email given</span>
         </dd>
+        <template v-if="item.page">
+          <dt>Page</dt>
+          <dd class="font-mono break-words">
+            <a :href="item.page" target="_blank" rel="noopener noreferrer" class="link">{{
+              item.page
+            }}</a>
+          </dd>
+        </template>
         <template v-for="(value, key) in item.context" :key="key">
           <dt class="font-mono">{{ key }}</dt>
           <dd class="font-mono break-words">{{ value }}</dd>
@@ -97,19 +114,6 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
       </div>
 
       <div class="cluster gap-1 hairline-t pt-4">
-        <a
-          v-if="item.setupLink"
-          :href="item.setupLink"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="btn"
-          data-icon
-          data-size="s"
-          data-variant="ghost"
-          aria-label="Open the setup"
-          data-tip="Open the setup"
-          ><i class="icon" data-icon="external"></i
-        ></a>
         <a
           v-if="item.issueLink"
           :href="item.issueLink"

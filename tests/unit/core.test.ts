@@ -18,11 +18,11 @@ import {
   type InboxFilter,
   pruneFeedback,
   setStatus,
-  setupLink,
 } from '../../server/core/feedback'
 import { checkToken, issueToken } from '../../server/core/token'
 
 const DAY = 24 * 60 * 60 * 1000
+const NOTHING = { context: {}, page: null }
 const list = (db: DatabaseSync, filter: InboxFilter, app?: string) =>
   feedbackPage(db, { app, filter, page: 1, pageSize: 100 }).items
 const dirs: string[] = []
@@ -50,7 +50,7 @@ const sonotas: AppConfig = {
     { key: 'version', max: 20 },
     { key: 'settings', max: 200 },
   ],
-  setupUrl: 'https://sonotas.sovrin.de/?s={settings}',
+  sendPage: true,
   issueRepo: 'sovrin/sonotas',
   retentionDays: 30,
   enabled: true,
@@ -101,7 +101,7 @@ describe('app settings', () => {
     expect(createApp(db, sonotas)).toBe(true)
     expect(createApp(db, sonotas)).toBe(false)
     expect(getApp(db, 'sonotas')).toEqual(sonotas)
-    addFeedback(db, 'sonotas', submission(), {})
+    addFeedback(db, 'sonotas', submission(), NOTHING)
     expect(listApps(db)[0]).toMatchObject({ id: 'sonotas', newCount: 1, totalCount: 1 })
     updateApp(db, 'sonotas', { ...sonotas, enabled: false })
     expect(getApp(db, 'sonotas')?.enabled).toBe(false)
@@ -114,6 +114,7 @@ describe('submissions', () => {
   it('keep only what the app allows', () => {
     expect(acceptSubmission(sonotas, submission({ context: { version: '0.2.0' } }))).toEqual({
       context: { version: '0.2.0' },
+      page: null,
     })
     expect(acceptSubmission(sonotas, submission({ kind: 'other' }))).toHaveProperty('error')
     expect(acceptSubmission(sonotas, submission({ context: { secret: 'x' } }))).toHaveProperty(
@@ -131,8 +132,8 @@ describe('submissions', () => {
     const db = database()
     createApp(db, sonotas)
     const now = 10 * DAY
-    const id = addFeedback(db, 'sonotas', submission(), {}, now)
-    addFeedback(db, 'sonotas', submission(), {}, now - 2 * DAY)
+    const id = addFeedback(db, 'sonotas', submission(), NOTHING, now)
+    addFeedback(db, 'sonotas', submission(), NOTHING, now - 2 * DAY)
     expect(countLastDay(db, 'sonotas', now)).toBe(1)
     expect(list(db, 'open')).toHaveLength(2)
     setStatus(db, id, 'done')
@@ -150,11 +151,17 @@ describe('inbox', () => {
     createApp(db, { ...sonotas, id: 'empty' })
     const now = 10 * DAY
     for (let i = 0; i < 7; i++) {
-      const id = addFeedback(db, 'sonotas', submission({ message: `s${i}` }), {}, now - i * 1000)
+      const id = addFeedback(
+        db,
+        'sonotas',
+        submission({ message: `s${i}` }),
+        NOTHING,
+        now - i * 1000,
+      )
       if (i > 0) setStatus(db, id, 'seen')
     }
     // quiet was heard from last, but has nothing unread
-    const latest = addFeedback(db, 'quiet', submission({ message: 'q' }), {}, now + 1000)
+    const latest = addFeedback(db, 'quiet', submission({ message: 'q' }), NOTHING, now + 1000)
     setStatus(db, latest, 'seen')
     const groups = inboxOverview(db, 'open', 5)
     expect(groups.map((group) => group.appId)).toEqual(['sonotas', 'quiet'])
@@ -166,7 +173,8 @@ describe('inbox', () => {
   it('pages one app, newest first, with the total', () => {
     const db = database()
     createApp(db, sonotas)
-    for (let i = 0; i < 7; i++) addFeedback(db, 'sonotas', submission({ message: `m${i}` }), {}, i)
+    for (let i = 0; i < 7; i++)
+      addFeedback(db, 'sonotas', submission({ message: `m${i}` }), NOTHING, i)
     const second = feedbackPage(db, { app: 'sonotas', filter: 'all', page: 2, pageSize: 3 })
     expect(second.items.map((item) => item.message)).toEqual(['m3', 'm2', 'm1'])
     expect(second).toMatchObject({ total: 7, newCount: 7, page: 2 })
@@ -180,10 +188,10 @@ describe('retention', () => {
     createApp(db, sonotas)
     createApp(db, { ...sonotas, id: 'kept', retentionDays: 0 })
     const old = 100 * DAY
-    const done = addFeedback(db, 'sonotas', submission(), {}, old)
+    const done = addFeedback(db, 'sonotas', submission(), NOTHING, old)
     setStatus(db, done, 'done', old)
-    addFeedback(db, 'sonotas', submission(), {}, old)
-    const forever = addFeedback(db, 'kept', submission(), {}, old)
+    addFeedback(db, 'sonotas', submission(), NOTHING, old)
+    const forever = addFeedback(db, 'kept', submission(), NOTHING, old)
     setStatus(db, forever, 'spam', old)
     expect(pruneFeedback(db, old + 31 * DAY)).toBe(1)
     expect(getFeedback(db, done)).toBeNull()
@@ -192,10 +200,26 @@ describe('retention', () => {
 })
 
 describe('links', () => {
-  it('fill the setup address from the context, or give none', () => {
-    expect(setupLink(sonotas, { settings: 'a b' })).toBe('https://sonotas.sovrin.de/?s=a%20b')
-    expect(setupLink(sonotas, {})).toBeNull()
-    expect(setupLink({ ...sonotas, setupUrl: '' }, { settings: 'x' })).toBeNull()
+  it("keep the page only from the app's own sites, and only when it sends pages", () => {
+    const page = 'https://sonotas.sovrin.de/?s=abc#bar-4'
+    const accepted = (overrides: Partial<Submission>, app = sonotas) =>
+      'error' in acceptSubmission(app, submission(overrides))
+        ? null
+        : (acceptSubmission(app, submission(overrides)) as { page: string | null }).page
+    expect(accepted({ page })).toBe(page)
+    expect(accepted({ page: 'https://evil.example/?s=abc' })).toBeNull()
+    expect(accepted({ page: 'not a url' })).toBeNull()
+    expect(accepted({ page }, { ...sonotas, sendPage: false })).toBeNull()
+  })
+
+  it('are stored with their page', () => {
+    const db = database()
+    createApp(db, sonotas)
+    const id = addFeedback(db, 'sonotas', submission(), {
+      context: {},
+      page: 'https://sonotas.sovrin.de/',
+    })
+    expect(getFeedback(db, id)?.page).toBe('https://sonotas.sovrin.de/')
   })
 
   it('prefill a GitHub issue without the sender email', () => {
@@ -207,6 +231,7 @@ describe('links', () => {
       message: 'Export stalls\nat 80%',
       email: 'someone@example.com',
       context: { version: '0.2.0' },
+      page: null,
       status: 'new',
       createdAt: 0,
       updatedAt: 0,

@@ -23,7 +23,7 @@ watch(name, (value) => {
 const origins = ref(props.app?.origins.join('\n') ?? '')
 const kinds = ref<string[]>(props.app?.kinds ?? ['problem', 'idea'])
 const context = ref<ContextField[]>(props.app?.context.map((field) => ({ ...field })) ?? [])
-const setupUrl = ref(props.app?.setupUrl ?? '')
+const sendPage = ref(props.app?.sendPage ?? true)
 const issueRepo = ref(props.app?.issueRepo ?? '')
 const retentionDays = ref(props.app?.retentionDays ?? 180)
 const enabled = ref(props.app?.enabled ?? true)
@@ -53,7 +53,7 @@ async function save() {
       .filter(Boolean),
     kinds: KINDS.filter((kind) => kinds.value.includes(kind)),
     context: context.value.map((field) => ({ key: field.key.trim(), max: Number(field.max) })),
-    setupUrl: setupUrl.value,
+    sendPage: sendPage.value,
     issueRepo: issueRepo.value,
     retentionDays: Number(retentionDays.value),
     enabled: enabled.value,
@@ -164,7 +164,7 @@ async function save() {
         >
           More settings
         </button>
-        <span class="text-muted"> context, links, retention, pausing</span>
+        <span class="text-muted"> context, page address, GitHub, retention, pausing</span>
       </p>
 
       <div v-show="moreOpen" id="more-settings" class="stack gap-5">
@@ -222,22 +222,12 @@ async function save() {
           </p>
         </div>
 
-        <div class="field">
-          <label for="setup-url">Setup address</label>
-          <input
-            id="setup-url"
-            v-model="setupUrl"
-            class="input font-mono text-s"
-            spellcheck="false"
-            placeholder="https://sonotas.sovrin.de/?s={settings}"
-            :aria-invalid="!!fieldError('setupUrl') || undefined"
-            aria-describedby="setup-url-help"
-          />
-          <small id="setup-url-help"
-            >Optional. "Open setup" on a feedback leads here; {name} takes that context
-            value.</small
+        <div class="stack gap-1">
+          <label><input v-model="sendPage" type="checkbox" /> Send the page address</label>
+          <small class="text-muted text-s ps-5"
+            >Each feedback can open the page it was sent from, with its query and state. Turn it off
+            if the app's addresses hold private data.</small
           >
-          <span v-if="fieldError('setupUrl')" data-error>{{ fieldError('setupUrl') }}</span>
         </div>
 
         <div class="field">

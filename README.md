@@ -17,8 +17,9 @@ owner               ── /                             inbox, feedback, apps (
 
 - **Apps are configured in the admin** (Apps → Add an app): the sites (origins) that may show
   the form, which kinds it offers (a problem, an idea, something else), which context fields the
-  site may send along (e.g. `version`, `settings`), a setup address and a GitHub repository for
-  the links on each feedback, and how long done and spam feedback is kept.
+  site may send along (e.g. `version`), whether it sends the address of the page the form is on
+  (so each feedback can open it), a GitHub repository for a prefilled issue, and how long done
+  and spam feedback is kept.
 - **The form component** comes from collatas itself and takes its look from the site's aequitas
   styles. The app page shows the snippet to embed:
 

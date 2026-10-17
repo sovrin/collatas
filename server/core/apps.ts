@@ -8,7 +8,7 @@ interface AppRow {
   origins: string
   kinds: string
   context: string
-  setup_url: string
+  send_page: number
   issue_repo: string
   retention_days: number
   enabled: number
@@ -21,7 +21,7 @@ function toConfig(row: AppRow): AppConfig {
     origins: JSON.parse(row.origins),
     kinds: JSON.parse(row.kinds),
     context: JSON.parse(row.context),
-    setupUrl: row.setup_url,
+    sendPage: row.send_page === 1,
     issueRepo: row.issue_repo,
     retentionDays: row.retention_days,
     enabled: row.enabled === 1,
@@ -55,7 +55,7 @@ function values(app: AppConfig) {
     JSON.stringify(app.origins),
     JSON.stringify(app.kinds),
     JSON.stringify(app.context),
-    app.setupUrl,
+    app.sendPage ? 1 : 0,
     app.issueRepo,
     app.retentionDays,
     app.enabled ? 1 : 0,
@@ -68,7 +68,7 @@ export function createApp(db: DatabaseSync, app: AppConfig, now = Date.now()) {
     db
       .prepare(
         `INSERT OR IGNORE INTO apps
-          (id, name, origins, kinds, context, setup_url, issue_repo, retention_days, enabled, created_at, updated_at)
+          (id, name, origins, kinds, context, send_page, issue_repo, retention_days, enabled, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(app.id, ...values(app), now, now).changes === 1
@@ -80,7 +80,7 @@ export function updateApp(db: DatabaseSync, id: string, app: AppConfig, now = Da
   return (
     db
       .prepare(
-        `UPDATE apps SET name = ?, origins = ?, kinds = ?, context = ?, setup_url = ?,
+        `UPDATE apps SET name = ?, origins = ?, kinds = ?, context = ?, send_page = ?,
           issue_repo = ?, retention_days = ?, enabled = ?, updated_at = ?
         WHERE id = ?`,
       )

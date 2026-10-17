@@ -1,6 +1,6 @@
 import type { FeedbackDetail } from '#shared/contracts'
 import { getApp } from '../../core/apps'
-import { getFeedback, issueLink, setupLink } from '../../core/feedback'
+import { getFeedback, issueLink } from '../../core/feedback'
 import { requireOwner } from '../../utils/auth'
 import { collatasDatabase } from '../../utils/collatas'
 
@@ -10,5 +10,5 @@ export default defineEventHandler((event): FeedbackDetail => {
   const item = getFeedback(db, getRouterParam(event, 'id') ?? '')
   const app = item && getApp(db, item.appId)
   if (!item || !app) throw createError({ statusCode: 404, statusMessage: 'This feedback is gone.' })
-  return { ...item, setupLink: setupLink(app, item.context), issueLink: issueLink(app, item) }
+  return { ...item, issueLink: issueLink(app, item) }
 })

@@ -42,14 +42,6 @@ export function isOrigin(value: string) {
   }
 }
 
-function isHttpUrl(value: string) {
-  try {
-    return ['http:', 'https:'].includes(new URL(value).protocol)
-  } catch {
-    return false
-  }
-}
-
 export const appIdSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'Use lowercase letters, digits and dashes.')
@@ -89,12 +81,9 @@ export const appConfigSchema = z
         (fields) => new Set(fields.map((field) => field.key)).size === fields.length,
         'Each context field once.',
       ),
-    // Where "Open setup" leads: {key} is replaced with that context value.
-    setupUrl: z
-      .string()
-      .trim()
-      .max(500)
-      .refine((value) => !value || isHttpUrl(value), 'Enter an http(s) address or leave it empty.'),
+    // Send the address of the page the form is on, so a feedback can open it. Off for an app
+    // whose addresses hold private data.
+    sendPage: z.boolean(),
     issueRepo: z
       .string()
       .trim()
@@ -122,6 +111,8 @@ export const submissionSchema = z
     message: z.string().trim().min(1, 'Write a message.').max(MAX_MESSAGE),
     email: z.union([z.literal(''), z.email().max(254)]).optional(),
     context: z.record(z.string(), z.string().max(2000)).optional(),
+    // Where the form was: kept only when the app sends pages and it is on one of its sites.
+    page: z.string().max(2000).optional(),
     // A field people never see: anything in it was filled in by a bot.
     website: z.string().max(500).optional(),
   })
@@ -135,6 +126,7 @@ export interface FormRules {
   kinds: { value: Kind; label: string }[]
   maxMessage: number
   context: ContextField[]
+  sendPage: boolean
   token: string
 }
 
@@ -146,6 +138,7 @@ export interface FeedbackItem {
   message: string
   email: string | null
   context: Record<string, string>
+  page: string | null
   status: Status
   createdAt: number
   updatedAt: number
@@ -170,7 +163,6 @@ export interface FeedbackPage {
 }
 
 export interface FeedbackDetail extends FeedbackItem {
-  setupLink: string | null
   issueLink: string | null
 }
 

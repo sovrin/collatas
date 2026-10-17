@@ -22,13 +22,13 @@ export function openDatabase(dataDir: string) {
       CREATE TABLE secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE apps (
         id TEXT PRIMARY KEY, name TEXT NOT NULL, origins TEXT NOT NULL, kinds TEXT NOT NULL,
-        context TEXT NOT NULL, setup_url TEXT NOT NULL DEFAULT '', issue_repo TEXT NOT NULL DEFAULT '',
+        context TEXT NOT NULL, send_page INTEGER NOT NULL DEFAULT 1, issue_repo TEXT NOT NULL DEFAULT '',
         retention_days INTEGER NOT NULL DEFAULT 180, enabled INTEGER NOT NULL DEFAULT 1,
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
       );
       CREATE TABLE feedback (
         id TEXT PRIMARY KEY, app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
-        kind TEXT NOT NULL, message TEXT NOT NULL, email TEXT, context TEXT NOT NULL,
+        kind TEXT NOT NULL, message TEXT NOT NULL, email TEXT, context TEXT NOT NULL, page TEXT,
         status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'seen', 'done', 'spam')),
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
       );

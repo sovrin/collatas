@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
     })
   const accepted = acceptSubmission(app, body.data)
   if ('error' in accepted) throw createError({ statusCode: 400, statusMessage: accepted.error })
-  addFeedback(db, app.id, body.data, accepted.context)
+  addFeedback(db, app.id, body.data, accepted)
   setResponseStatus(event, 201)
   return { ok: true }
 })

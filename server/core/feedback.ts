@@ -21,6 +21,7 @@ interface FeedbackRow {
   message: string
   email: string | null
   context: string
+  page: string | null
   status: Status
   created_at: number
   updated_at: number
@@ -35,18 +36,25 @@ function toItem(row: FeedbackRow): FeedbackItem {
     message: row.message,
     email: row.email,
     context: JSON.parse(row.context),
+    page: row.page,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
 }
 
-/** Checks a submission against what its app allows. Returns the reason it is refused, or the
- *  context to store. */
+/** What a submission keeps once its app has had its say. */
+export interface Accepted {
+  context: Record<string, string>
+  page: string | null
+}
+
+/** Checks a submission against what its app allows. Returns the reason it is refused, or what to
+ *  store. */
 export function acceptSubmission(
   app: AppConfig,
   submission: Submission,
-): { error: string } | { context: Record<string, string> } {
+): { error: string } | Accepted {
   if (!app.kinds.includes(submission.kind)) return { error: 'This kind is not offered.' }
   if ((submission.message.match(/https?:\/\//g) ?? []).length > MAX_LINKS)
     return { error: `Use at most ${MAX_LINKS} links.` }
@@ -57,20 +65,32 @@ export function acceptSubmission(
     if (value.length > field.max) return { error: `The context field ${key} is too long.` }
     context[key] = value
   }
-  return { context }
+  return { context, page: acceptPage(app, submission.page) }
+}
+
+/** The page the form was on, if the app sends pages and it lies on one of the app's sites. Any
+ *  other address is dropped, so nothing can plant links to elsewhere in the admin. */
+function acceptPage(app: AppConfig, page: string | undefined) {
+  if (!app.sendPage || !page) return null
+  try {
+    const url = new URL(page)
+    return app.origins.includes(url.origin) ? url.href : null
+  } catch {
+    return null
+  }
 }
 
 export function addFeedback(
   db: DatabaseSync,
   appId: string,
   submission: Submission,
-  context: Record<string, string>,
+  { context, page }: Accepted,
   now = Date.now(),
 ) {
   const id = randomUUID()
   db.prepare(
-    `INSERT INTO feedback (id, app_id, kind, message, email, context, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO feedback (id, app_id, kind, message, email, context, page, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     appId,
@@ -78,6 +98,7 @@ export function addFeedback(
     submission.message,
     submission.email || null,
     JSON.stringify(context),
+    page,
     now,
     now,
   )
@@ -219,18 +240,6 @@ export function pruneFeedback(db: DatabaseSync, now = Date.now()) {
       )
       .run(now).changes,
   )
-}
-
-/** The app's setup address with {key} placeholders filled from the feedback's context, or null
- *  when the app has none or a placeholder has no value. */
-export function setupLink(app: AppConfig, context: Record<string, string>) {
-  if (!app.setupUrl) return null
-  let missing = false
-  const link = app.setupUrl.replace(/\{(\w+)\}/g, (_, key: string) => {
-    if (!context[key]) missing = true
-    return encodeURIComponent(context[key] ?? '')
-  })
-  return missing ? null : link
 }
 
 /** A prefilled "new issue" on GitHub for the owner to review and submit. The sender's email
