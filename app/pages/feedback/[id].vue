@@ -82,12 +82,6 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
       <p class="message">{{ item.message }}</p>
 
       <dl class="properties">
-        <dt>App</dt>
-        <dd>
-          <NuxtLink :to="`/apps/${item.appId}`" class="link font-mono" data-quiet>{{
-            item.appName
-          }}</NuxtLink>
-        </dd>
         <dt>Received</dt>
         <dd class="font-mono">{{ formatTime(item.createdAt) }}</dd>
         <dt>Reply to</dt>
