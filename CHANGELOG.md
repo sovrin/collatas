@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.3](https://github.com/sovrin/collatas/compare/v0.2.2...v0.2.3) (2026-10-17)
+
+
+### Features
+
+* **apps:** per-app limits on message length, entries and storage ([354c7b2](https://github.com/sovrin/collatas/commit/354c7b25f7c489769d64956a5f3360f24aef7b0e))
+* **feedback:** a short sender tag, the same for one sender on one day ([354c7b2](https://github.com/sovrin/collatas/commit/354c7b25f7c489769d64956a5f3360f24aef7b0e))
+* **inbox:** search feedback by words, email, context or sender tag ([354c7b2](https://github.com/sovrin/collatas/commit/354c7b25f7c489769d64956a5f3360f24aef7b0e))
+
+
+### Bug Fixes
+
+* **form:** load in Vue and Nuxt apps, and fail quietly with a timeout ([b7f6556](https://github.com/sovrin/collatas/commit/b7f65566a25c8bf6dc8ab05404a7da5b72ad1866))
+* **security:** count IPv6 senders by their /64, and rate-limit only feedback that is kept ([354c7b2](https://github.com/sovrin/collatas/commit/354c7b25f7c489769d64956a5f3360f24aef7b0e))
+
 ## [0.2.2](https://github.com/sovrin/collatas/compare/v0.2.1...v0.2.2) (2026-10-17)
 
 
