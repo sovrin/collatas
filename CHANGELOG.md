@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.6](https://github.com/sovrin/collatas/compare/v0.2.5...v0.2.6) (2026-10-17)
+
+
+### Features
+
+* **webhook:** post new feedback to COLLATAS_WEBHOOK_URL ([cbfb924](https://github.com/sovrin/collatas/commit/cbfb924f530edf9ecd657e641db3e6332ac81fd1))
+
+
+### Bug Fixes
+
+* **feedback:** drop the app row the breadcrumb already shows ([b2dc896](https://github.com/sovrin/collatas/commit/b2dc89665e7f7e2e8f552425dba6035ef465eb42))
+
 ## [0.2.5](https://github.com/sovrin/collatas/compare/v0.2.4...v0.2.5) (2026-10-17)
 
 
