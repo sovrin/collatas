@@ -37,7 +37,7 @@ Conventions for working on collatas, in code and in the interface.
 Commit messages are [conventional](https://www.conventionalcommits.org):
 `feat(inbox): …`, `fix: …`, `docs(readme): …`. Give a scope or leave the parentheses out; never
 write `feat(): …`. release-please can't parse an empty scope and silently drops the commit from
-the next version and the changelog. `feat` bumps the minor version, `fix` the patch; mark a change
-that breaks the public `/v1` API or the form component's embed with `!` (`feat(api)!: …`), since
-sites already out there depend on them. Don't edit the version in `package.json` or
-`CHANGELOG.md` by hand; the release PR does that.
+the next version and the changelog. Before 1.0, `feat` and `fix` bump the patch version and a
+change marked `!` the minor. Mark a change that breaks the public `/v1` API or the form
+component's embed with `!` (`feat(api)!: …`), since sites already out there depend on them. Don't
+edit the version in `package.json` or `CHANGELOG.md` by hand; the release PR does that.
