@@ -217,7 +217,19 @@ class CollatasForm extends HTMLElement {
       h(
         'p',
         { class: 'caption' },
-        `Goes to the developer of ${rules.name}, with ${context.length ? 'the details under Sent along' : 'nothing else'}.`,
+        `Goes to the developer of ${rules.name} through `,
+        // A new tab, so a half-written message is not lost.
+        h(
+          'a',
+          {
+            href: 'https://github.com/sovrin/collatas',
+            class: 'link',
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          },
+          'collatas',
+        ),
+        `, with ${context.length ? 'the details under Sent along' : 'nothing else'}.`,
       ),
       status,
       send,
