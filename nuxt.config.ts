@@ -14,6 +14,8 @@ export default defineNuxtConfig({
   alias: { '@aequitas': aequitas },
   vite: { server: { fs: { allow: [root, resolve(aequitas, '..')] } } },
   nitro: { preset: 'node-server' },
+  // Page changes crossfade through the browser's View Transitions (see app.css for timing).
+  experimental: { viewTransition: true },
   routeRules: {
     // The form component is loaded by other sites as a module script, which browsers fetch
     // with CORS. It is public code; a short cache lets a fix reach every app within minutes.

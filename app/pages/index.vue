@@ -17,6 +17,7 @@ const filter = computed(() =>
 )
 const app = computed(() => (typeof route.query.app === 'string' ? route.query.app : ''))
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
+const view = computed(() => `${filter.value}|${app.value}|${page.value}`)
 useHead({ title: () => `${app.value ? `${app.value} · ` : ''}Inbox · collatas` })
 
 // Across all apps the server sends each app's counts and newest few; one app's view is paged.
@@ -122,7 +123,16 @@ const empty = computed(() =>
           <span v-if="group.newCount" class="text-s text-warning">{{ group.newCount }} new</span>
           <span v-else class="text-s text-muted">{{ countLabel(group.total) }}</span>
         </div>
-        <ul data-variant="plain" :aria-label="`Feedback for ${group.appId}`">
+        <!-- Rows animate only while the view stays the same (live arrivals, status changes); a new
+             filter, app or page replaces the list at once, keyed by the view. -->
+        <TransitionGroup
+          :key="view"
+          tag="ul"
+          name="row"
+          class="relative"
+          data-variant="plain"
+          :aria-label="`Feedback for ${group.appId}`"
+        >
           <li v-for="item in group.items" :key="item.id" class="py-3 hairline-b">
             <div class="cluster gap-3 flex-nowrap">
               <span
@@ -134,7 +144,7 @@ const empty = computed(() =>
                    the difference is one of contrast, not only of weight. -->
               <NuxtLink
                 :to="`/feedback/${item.id}`"
-                class="link flex-1 min-w-0 truncate"
+                class="link row-title flex-1 min-w-0 truncate"
                 :class="item.status === 'new' ? 'weight-600' : 'text-muted'"
                 data-quiet
                 >{{ excerpt(item.message) }}</NuxtLink
@@ -151,7 +161,7 @@ const empty = computed(() =>
               <time class="text-s text-muted tabular">{{ formatAge(item.createdAt) }}</time>
             </div>
           </li>
-        </ul>
+        </TransitionGroup>
         <p v-if="!app && group.total > group.items.length" class="pt-2">
           <NuxtLink :to="inbox({ app: group.appId })" class="link text-s"
             >{{ group.total - group.items.length }} more from

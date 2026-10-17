@@ -88,3 +88,50 @@ button.link[data-quiet] {
 .breadcrumb {
   align-items: baseline;
 }
+
+/* Motion. Timing comes from aequitas: --ae-duration (0.22s) and its fast step, --ae-ease (a strong
+   ease-out). Under prefers-reduced-motion aequitas sets --ae-duration to 1ms, so all of this goes
+   still there with no rule of its own. Nothing scales or bounces; things fade, and move only to
+   show where they came from. */
+:root {
+  /* For rows making room on screen; aequitas has no ease-in-out of its own. */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Page changes: a short crossfade instead of a cut, quick because it happens all day. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--ae-duration-fast);
+  animation-timing-function: var(--ae-ease);
+}
+
+/* A state change (new to seen, a marker turning green) eases over instead of snapping. */
+.dot {
+  transition: background-color var(--ae-duration) ease;
+}
+.row-title {
+  transition: color var(--ae-duration) ease;
+}
+
+/* Feedback arriving live drops in from just above; the rows below make room; one that leaves the
+   view fades out of its place. The list's own container is .relative for that. */
+.row-enter-active {
+  transition:
+    opacity var(--ae-duration) var(--ae-ease),
+    transform var(--ae-duration) var(--ae-ease);
+}
+.row-enter-from {
+  opacity: 0;
+  transform: translateY(-30%);
+}
+.row-leave-active {
+  position: absolute;
+  inset-inline: 0;
+  transition: opacity var(--ae-duration-fast) var(--ae-ease);
+}
+.row-leave-to {
+  opacity: 0;
+}
+.row-move {
+  transition: transform var(--ae-duration) var(--ease-in-out);
+}
