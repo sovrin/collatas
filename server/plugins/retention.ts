@@ -1,13 +1,16 @@
+import { pruneAttempts } from '../core/auth'
 import { pruneFeedback } from '../core/feedback'
 import { collatasDatabase } from '../utils/collatas'
 import { announceChange } from '../utils/changes'
 
-// Done and spam feedback leaves after its app's retention: checked at start and every hour.
+// Feedback leaves after its app's retention, and rate limits once their window ends: checked at
+// start and every hour.
 export default defineNitroPlugin(() => {
   const prune = () => {
+    pruneAttempts(collatasDatabase())
     const removed = pruneFeedback(collatasDatabase())
     if (!removed) return
-    console.info(`collatas: deleted ${removed} done or spam entries past retention`)
+    console.info(`collatas: deleted ${removed} entries past retention`)
     announceChange()
   }
   prune()

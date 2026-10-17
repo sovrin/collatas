@@ -133,7 +133,7 @@ async function save() {
             class="input font-mono text-s"
             required
             spellcheck="false"
-            placeholder="https://sonotas.sovrin.de"
+            placeholder="https://sonotas.example.com"
             :aria-invalid="!!fieldError('origins') || undefined"
             aria-describedby="origins-help"
           ></textarea>
@@ -249,7 +249,7 @@ async function save() {
         </div>
 
         <div class="field">
-          <label for="retention">Keep done and spam for</label>
+          <label for="retention">Keep feedback for</label>
           <div class="cluster gap-3 flex-nowrap">
             <input
               id="retention"
@@ -257,14 +257,14 @@ async function save() {
               class="input font-mono text-s"
               data-size="s"
               type="number"
-              min="0"
+              min="1"
               max="3650"
               style="inline-size: 6rem"
               aria-describedby="retention-help"
             />
             <span class="text-s text-muted">days</span>
           </div>
-          <small id="retention-help">Then they are deleted. 0 keeps them.</small>
+          <small id="retention-help">After its last change; then it is deleted, read or not.</small>
         </div>
 
         <label><input v-model="enabled" type="checkbox" /> Accept feedback</label>

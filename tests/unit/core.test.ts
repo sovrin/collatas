@@ -5,7 +5,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { appConfigSchema, type AppConfig, type Submission } from '../../shared/contracts'
 import { createApp, deleteApp, getApp, listApps, updateApp } from '../../server/core/apps'
-import { consumeAttempt } from '../../server/core/auth'
+import { consumeAttempt, consumeAuthAttempt } from '../../server/core/auth'
 import { openDatabase, secret } from '../../server/core/database'
 import {
   acceptSubmission,
@@ -44,7 +44,7 @@ afterEach(() => {
 const sonotas: AppConfig = {
   id: 'sonotas',
   name: 'sonotas',
-  origins: ['https://sonotas.sovrin.de'],
+  origins: ['https://sonotas.example.com'],
   kinds: ['problem', 'idea'],
   context: [
     { key: 'version', max: 20 },
@@ -78,10 +78,11 @@ describe('form tokens', () => {
 
 describe('app settings', () => {
   it('accept origins without a trailing slash and refuse paths', () => {
-    const parsed = appConfigSchema.parse({ ...sonotas, origins: ['https://sonotas.sovrin.de/'] })
-    expect(parsed.origins).toEqual(['https://sonotas.sovrin.de'])
+    const parsed = appConfigSchema.parse({ ...sonotas, origins: ['https://sonotas.example.com/'] })
+    expect(parsed.origins).toEqual(['https://sonotas.example.com'])
     expect(
-      appConfigSchema.safeParse({ ...sonotas, origins: ['https://sonotas.sovrin.de/app'] }).success,
+      appConfigSchema.safeParse({ ...sonotas, origins: ['https://sonotas.example.com/app'] })
+        .success,
     ).toBe(false)
     expect(appConfigSchema.safeParse({ ...sonotas, id: 'Sonotas' }).success).toBe(false)
     expect(appConfigSchema.safeParse({ ...sonotas, kinds: [] }).success).toBe(false)
@@ -183,30 +184,45 @@ describe('inbox', () => {
 })
 
 describe('retention', () => {
-  it('deletes done and spam past the app retention, never open feedback', () => {
+  it('deletes feedback of every status past the app retention since its last change', () => {
     const db = database()
     createApp(db, sonotas)
-    createApp(db, { ...sonotas, id: 'kept', retentionDays: 0 })
+    createApp(db, { ...sonotas, id: 'longer', retentionDays: 60 })
     const old = 100 * DAY
     const done = addFeedback(db, 'sonotas', submission(), NOTHING, old)
     setStatus(db, done, 'done', old)
-    addFeedback(db, 'sonotas', submission(), NOTHING, old)
-    const forever = addFeedback(db, 'kept', submission(), NOTHING, old)
-    setStatus(db, forever, 'spam', old)
-    expect(pruneFeedback(db, old + 31 * DAY)).toBe(1)
+    const unread = addFeedback(db, 'sonotas', submission(), NOTHING, old)
+    const touched = addFeedback(db, 'sonotas', submission(), NOTHING, old)
+    setStatus(db, touched, 'seen', old + 10 * DAY)
+    addFeedback(db, 'longer', submission(), NOTHING, old)
+    expect(pruneFeedback(db, old + 31 * DAY)).toBe(2)
     expect(getFeedback(db, done)).toBeNull()
+    expect(getFeedback(db, unread)).toBeNull()
     expect(list(db, 'all')).toHaveLength(2)
+  })
+
+  it('refuses keeping forever, and moves apps that did to the longest retention', () => {
+    expect(appConfigSchema.safeParse({ ...sonotas, retentionDays: 0 }).success).toBe(false)
+    const dir = mkdtempSync(join(tmpdir(), 'collatas-test-'))
+    dirs.push(dir)
+    const before = openDatabase(dir)
+    createApp(before, { ...sonotas, retentionDays: 1 })
+    before.exec('UPDATE apps SET retention_days = 0; PRAGMA user_version = 1;')
+    before.close()
+    const db = openDatabase(dir)
+    dbs.push(db)
+    expect(getApp(db, 'sonotas')?.retentionDays).toBe(3650)
   })
 })
 
 describe('links', () => {
   it("keep the page only from the app's own sites, and only when it sends pages", () => {
-    const page = 'https://sonotas.sovrin.de/?s=abc#bar-4'
+    const page = 'https://sonotas.example.com/?s=abc#access_token=secret'
     const accepted = (overrides: Partial<Submission>, app = sonotas) =>
       'error' in acceptSubmission(app, submission(overrides))
         ? null
         : (acceptSubmission(app, submission(overrides)) as { page: string | null }).page
-    expect(accepted({ page })).toBe(page)
+    expect(accepted({ page })).toBe('https://sonotas.example.com/?s=abc')
     expect(accepted({ page: 'https://evil.example/?s=abc' })).toBeNull()
     expect(accepted({ page: 'not a url' })).toBeNull()
     expect(accepted({ page }, { ...sonotas, sendPage: false })).toBeNull()
@@ -217,9 +233,9 @@ describe('links', () => {
     createApp(db, sonotas)
     const id = addFeedback(db, 'sonotas', submission(), {
       context: {},
-      page: 'https://sonotas.sovrin.de/',
+      page: 'https://sonotas.example.com/',
     })
-    expect(getFeedback(db, id)?.page).toBe('https://sonotas.sovrin.de/')
+    expect(getFeedback(db, id)?.page).toBe('https://sonotas.example.com/')
   })
 
   it('prefill a GitHub issue without the sender email', () => {
@@ -250,6 +266,16 @@ describe('rate limits and secrets', () => {
     for (let i = 0; i < 5; i++) expect(consumeAttempt(db, 'send:a:1', 5, 60_000, 0)).toBe(0)
     expect(consumeAttempt(db, 'send:a:1', 5, 60_000, 1000)).toBe(59)
     expect(consumeAttempt(db, 'send:a:1', 5, 60_000, 60_001)).toBe(0)
+  })
+
+  it('limit sign-in per sender, under a ceiling for everyone', () => {
+    const db = database()
+    for (let i = 0; i < 10; i++) expect(consumeAuthAttempt(db, 'login', 'a', 0)).toBe(0)
+    expect(consumeAuthAttempt(db, 'login', 'a', 0)).toBeGreaterThan(0)
+    // one sender used up its attempts; another can still sign in
+    expect(consumeAuthAttempt(db, 'login', 'b', 0)).toBe(0)
+    for (let i = 0; i < 89; i++) consumeAuthAttempt(db, 'login', `s${i}`, 0)
+    expect(consumeAuthAttempt(db, 'login', 'c', 0)).toBeGreaterThan(0)
   })
 
   it('keep a secret once created', () => {

@@ -1,6 +1,8 @@
+import { createHmac } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { getApp } from '../core/apps'
 import { consumeAuthAttempt, createSession, sessionOwner } from '../core/auth'
+import { secret } from '../core/database'
 import { collatasDatabase, collatasOrigin } from './collatas'
 
 export const SESSION_COOKIE = 'collatas_session'
@@ -22,8 +24,22 @@ export function setOwnerSession(event: H3Event) {
   })
 }
 
+/** Who is asking, for rate limits. The proxy in front appends the address it saw as the last
+ *  X-Forwarded-For entry; earlier ones come from the client. Keyed with a secret, so the
+ *  database never holds an IP address. */
+// shortcut: assumes exactly one proxy in front (Caddy, nginx); behind a CDN as well, count hops.
+export function requestSender(event: H3Event) {
+  const address =
+    getHeader(event, 'x-forwarded-for')?.split(',').at(-1)?.trim() ||
+    getRequestIP(event) ||
+    'unknown'
+  return createHmac('sha256', secret(collatasDatabase(), 'sender-key'))
+    .update(address)
+    .digest('base64url')
+}
+
 export function checkAuthRate(event: H3Event, key: string) {
-  const retryAfter = consumeAuthAttempt(collatasDatabase(), key)
+  const retryAfter = consumeAuthAttempt(collatasDatabase(), key, requestSender(event))
   if (retryAfter) {
     setHeader(event, 'Retry-After', retryAfter)
     throw createError({

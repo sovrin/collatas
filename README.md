@@ -24,7 +24,7 @@ owner               ── /                             inbox, feedback, apps (
   styles. The app page shows the snippet to embed:
 
   ```html
-  <script type="module" src="https://collatas.sovrin.de/v1/form.js"></script>
+  <script type="module" src="https://collatas.example.com/v1/form.js"></script>
   <collatas-form app="sonotas"></collatas-form>
   <script>
     document.querySelector('collatas-form').context = { version: '0.2.0' }
@@ -58,7 +58,7 @@ Open http://localhost:3000. On first run the launcher writes a random installati
 ## Run with Docker Compose
 
 Copy `.env.example` to `.env`, set `COLLATAS_BOOTSTRAP_TOKEN` (`openssl rand -hex 32`) and the
-public address, `COLLATAS_ORIGIN=https://collatas.sovrin.de`. Then:
+public address, `COLLATAS_ORIGIN=https://collatas.example.com`. Then:
 
 ```sh
 docker compose up -d --build
@@ -66,8 +66,21 @@ docker compose up -d --build
 
 The web service listens on `127.0.0.1:3000` (`COLLATAS_BIND`). TLS and the public address belong
 to your reverse proxy: put it, or the network it shares, in an untracked `compose.override.yaml`.
-The proxy must set `X-Forwarded-For`, which the per-sender rate limit counts by. The image runs as
-an unprivileged user on Alpine with only the node binary (about 130 MB unpacked).
+The proxy must append the caller's address to `X-Forwarded-For`; the rate limits count senders by
+its last entry, kept only as a keyed hash. With Caddy that is the default:
+
+```
+collatas.example.com {
+	reverse_proxy 127.0.0.1:3000
+	header Strict-Transport-Security "max-age=31536000"
+}
+```
+
+Put nothing else (a CDN) in front of the proxy without changing how the sender is read. The image
+runs as an unprivileged user on Alpine with only the node binary (about 130 MB unpacked).
+
+Feedback of every status is deleted after its app's retention (180 days unless set, at most 3650),
+counted from its last change.
 
 Data lives in the `collatas-data` volume (`collatas.sqlite`); back it up and never
 `docker compose down -v`. Forgot the password? `pnpm owner:reset --confirm` (with

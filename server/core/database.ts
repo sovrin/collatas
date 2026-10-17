@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
-const VERSION = 1
+const VERSION = 2
 
 export function openDatabase(dataDir: string) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
@@ -36,6 +36,12 @@ export function openDatabase(dataDir: string) {
       CREATE INDEX feedback_app ON feedback(app_id, created_at);
       PRAGMA user_version = 1;
     `)
+    // Retention now covers every status and always ends; apps that kept feedback forever keep
+    // it as long as allowed.
+    if (version < 2)
+      db.exec(
+        'UPDATE apps SET retention_days = 3650 WHERE retention_days = 0; PRAGMA user_version = 2;',
+      )
   })
   return db
 }

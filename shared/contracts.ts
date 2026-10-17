@@ -66,7 +66,7 @@ export const appConfigSchema = z
           .string()
           .trim()
           .transform((value) => value.replace(/\/$/, ''))
-          .refine(isOrigin, 'Enter an origin like https://sonotas.sovrin.de, without a path.'),
+          .refine(isOrigin, 'Enter an origin like https://sonotas.example.com, without a path.'),
       )
       .min(1, 'Add the site that shows the form.')
       .max(10),
@@ -91,8 +91,8 @@ export const appConfigSchema = z
         (value) => !value || /^[\w.-]+\/[\w.-]+$/.test(value),
         'Enter owner/repository or leave it empty.',
       ),
-    // Done and spam feedback is deleted this many days after its last change; 0 keeps it.
-    retentionDays: z.number().int().min(0).max(3650),
+    // Feedback is deleted this many days after its last change, whatever its status.
+    retentionDays: z.number().int().min(1, 'Keep feedback at least a day.').max(3650),
     enabled: z.boolean(),
   })
   .strict()

@@ -13,6 +13,13 @@ export default defineEventHandler((event) => {
   setHeader(event, 'X-Content-Type-Options', 'nosniff')
   setHeader(event, 'X-Frame-Options', 'DENY')
   setHeader(event, 'Referrer-Policy', 'same-origin')
+  // shortcut: no script-src, since Nuxt inlines its config script; add nonces if pages ever
+  // render HTML from feedback.
+  setHeader(
+    event,
+    'Content-Security-Policy',
+    "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  )
   if (!['GET', 'HEAD', 'OPTIONS'].includes(event.method)) limitBody(event)
   const path = event.path.split('?')[0]!
   const route = PUBLIC.exec(path)

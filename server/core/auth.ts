@@ -97,7 +97,7 @@ export function consumeAttempt(
   now = Date.now(),
 ) {
   return transaction(db, () => {
-    db.prepare('DELETE FROM rate_limits WHERE resets_at <= ?').run(now)
+    pruneAttempts(db, now)
     const current = db
       .prepare('SELECT attempts, resets_at FROM rate_limits WHERE key = ?')
       .get(key) as { attempts: number; resets_at: number } | undefined
@@ -110,8 +110,24 @@ export function consumeAttempt(
   })
 }
 
-export function consumeAuthAttempt(db: DatabaseSync, key: string, now = Date.now()) {
-  return consumeAttempt(db, `auth:${key}`, 10, 15 * 60 * 1000, now)
+/** Forgets windows that have run out, so no sender key outlives its limit. */
+export function pruneAttempts(db: DatabaseSync, now = Date.now()) {
+  db.prepare('DELETE FROM rate_limits WHERE resets_at <= ?').run(now)
+}
+
+const AUTH_WINDOW = 15 * 60 * 1000
+
+export function consumeAuthAttempt(
+  db: DatabaseSync,
+  key: string,
+  sender: string,
+  now = Date.now(),
+) {
+  // Per sender, so one caller cannot lock the owner out; the shared ceiling still stops a botnet.
+  return (
+    consumeAttempt(db, `auth:${key}:${sender}`, 10, AUTH_WINDOW, now) ||
+    consumeAttempt(db, `auth:${key}`, 100, AUTH_WINDOW, now)
+  )
 }
 
 export function resetOwner(db: DatabaseSync) {

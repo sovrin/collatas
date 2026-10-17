@@ -3,27 +3,29 @@ import { consumeAttempt } from '../../../../core/auth'
 import { secret } from '../../../../core/database'
 import { acceptSubmission, addFeedback, countLastDay } from '../../../../core/feedback'
 import { checkToken } from '../../../../core/token'
-import { routeApp } from '../../../../utils/auth'
+import { requestSender, routeApp } from '../../../../utils/auth'
 import { collatasDatabase } from '../../../../utils/collatas'
 import { announceChange } from '../../../../utils/changes'
 
 const PER_SENDER = 5 // per sender and app, every 10 minutes
+const PER_SENDER_DAY = 20 // per sender and app, so one sender cannot use up PER_DAY
 const PER_DAY = 200 // per app, so a flood cannot fill the disk
+const DAY = 24 * 60 * 60 * 1000
 
 export default defineEventHandler(async (event) => {
   const db = collatasDatabase()
   const app = routeApp(event)
   if (!getHeader(event, 'content-type')?.startsWith('application/json'))
     throw createError({ statusCode: 415, statusMessage: 'Send application/json.' })
-  // collatas runs behind a reverse proxy that sets X-Forwarded-For; published directly, a sender
-  // could set it and spread their attempts over made-up addresses.
-  const sender = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
-  const retryAfter = consumeAttempt(db, `send:${app.id}:${sender}`, PER_SENDER, 10 * 60 * 1000)
+  const sender = requestSender(event)
+  const retryAfter =
+    consumeAttempt(db, `send:${app.id}:${sender}`, PER_SENDER, 10 * 60 * 1000) ||
+    consumeAttempt(db, `send-day:${app.id}:${sender}`, PER_SENDER_DAY, DAY)
   if (retryAfter) {
     setHeader(event, 'Retry-After', retryAfter)
     throw createError({
       statusCode: 429,
-      statusMessage: 'You have sent a lot of feedback just now. Try again in a few minutes.',
+      statusMessage: 'You have sent a lot of feedback. Try again later.',
     })
   }
   if (countLastDay(db, app.id) >= PER_DAY)

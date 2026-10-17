@@ -74,6 +74,7 @@ function acceptPage(app: AppConfig, page: string | undefined) {
   if (!app.sendPage || !page) return null
   try {
     const url = new URL(page)
+    url.hash = '' // never sent to a server, and often holds tokens
     return app.origins.includes(url.origin) ? url.href : null
   } catch {
     return null
@@ -228,14 +229,14 @@ export function countNew(db: DatabaseSync) {
   ).count
 }
 
-/** Deletes done and spam feedback older than its app's retention. Returns how many. */
+/** Deletes feedback of any status once its app's retention has passed since its last change:
+ *  what people send is personal data and is not kept without end. Returns how many. */
 export function pruneFeedback(db: DatabaseSync, now = Date.now()) {
   return Number(
     db
       .prepare(
-        `DELETE FROM feedback WHERE status IN ('done', 'spam') AND app_id IN (
-          SELECT id FROM apps WHERE retention_days > 0
-            AND feedback.updated_at < ? - retention_days * ${DAY}
+        `DELETE FROM feedback WHERE app_id IN (
+          SELECT id FROM apps WHERE feedback.updated_at < ? - retention_days * ${DAY}
         )`,
       )
       .run(now).changes,
