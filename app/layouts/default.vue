@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import ThemeSwitch from '~/components/ae/ThemeSwitch.vue'
 import { errorMessage } from '~/lib/format'
+// Bumped by the release PR, so it names the release this build belongs to.
+import { version } from '~~/package.json'
 const route = useRoute()
 const theme = useThemeMode()
 const sections = [
@@ -60,16 +62,19 @@ async function logout() {
         <StatusLine />
         <div class="cluster justify-between gap-4">
           <ThemeSwitch v-model="theme" />
-          <button
-            type="button"
-            class="link text-s"
-            data-quiet
-            :disabled="signingOut"
-            :aria-busy="signingOut || undefined"
-            @click="logout"
-          >
-            Sign out
-          </button>
+          <span class="cluster gap-3">
+            <span class="font-mono text-xs text-muted">v{{ version }}</span>
+            <button
+              type="button"
+              class="link text-s"
+              data-quiet
+              :disabled="signingOut"
+              :aria-busy="signingOut || undefined"
+              @click="logout"
+            >
+              Sign out
+            </button>
+          </span>
         </div>
       </footer>
     </div>
