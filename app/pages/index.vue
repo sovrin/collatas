@@ -25,7 +25,7 @@ const { data, error, refresh } = await useFetch<InboxGroup[] | FeedbackPage>(
   { query: { filter, app, page } },
 )
 const { data: apps } = await useFetch<AppSummary[]>('/api/apps')
-usePolling(refresh)
+useLive(refresh)
 
 /** Both answers as groups, so one list renders them. */
 const groups = computed<InboxGroup[]>(() => {

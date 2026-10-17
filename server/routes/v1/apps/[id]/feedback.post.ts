@@ -5,6 +5,7 @@ import { acceptSubmission, addFeedback, countLastDay } from '../../../../core/fe
 import { checkToken } from '../../../../core/token'
 import { routeApp } from '../../../../utils/auth'
 import { collatasDatabase } from '../../../../utils/collatas'
+import { announceChange } from '../../../../utils/changes'
 
 const PER_SENDER = 5 // per sender and app, every 10 minutes
 const PER_DAY = 200 // per app, so a flood cannot fill the disk
@@ -49,6 +50,7 @@ export default defineEventHandler(async (event) => {
   const accepted = acceptSubmission(app, body.data)
   if ('error' in accepted) throw createError({ statusCode: 400, statusMessage: accepted.error })
   addFeedback(db, app.id, body.data, accepted)
+  announceChange()
   setResponseStatus(event, 201)
   return { ok: true }
 })

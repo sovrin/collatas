@@ -3,6 +3,7 @@ import type { AppSummary } from '#shared/contracts'
 import { errorMessage } from '~/lib/format'
 useHead({ title: 'Apps · collatas' })
 const { data, error, refresh } = await useFetch<AppSummary[]>('/api/apps')
+useLive(refresh)
 </script>
 
 <template>

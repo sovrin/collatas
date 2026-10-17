@@ -5,7 +5,7 @@ const { data, refresh } = useFetch<{ newCount: number; appCount: number }>('/api
   server: false,
   lazy: true,
 })
-usePolling(refresh)
+useLive(refresh)
 // Refresh on navigation too, so the line never contradicts the page that just loaded.
 const route = useRoute()
 watch(
