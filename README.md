@@ -94,6 +94,32 @@ Data lives in the `collatas-data` volume (`collatas.sqlite`); back it up and nev
 `COLLATAS_DATA_DIR` pointing at the data) removes the owner and every session, keeps apps and
 feedback, and lets you set up again with the installation key.
 
+## Webhook
+
+Set `COLLATAS_WEBHOOK_URL` and every new feedback is posted there as JSON, once, without waiting
+for an answer; a failed delivery is logged and not retried. The sender's email stays out. Fields
+are only ever added:
+
+```json
+{
+  "event": "feedback.new",
+  "id": "…",
+  "app": { "id": "…", "name": "Shop" },
+  "kind": "bug",
+  "message": "…",
+  "context": { "version": "1.2.0" },
+  "page": "https://shop.example.com/checkout",
+  "url": "https://collatas.example.com/feedback/…"
+}
+```
+
+[ntfy](https://docs.ntfy.sh/publish/#message-templating) turns it into a notification with its
+inline templates; `auth` is `Bearer <token>` in base64 without the trailing `=`:
+
+```
+https://ntfy.example.com/collatas?tpl=yes&t={{.kind}}%20for%20{{.app.name}}&m={{.message}}&auth=…
+```
+
 ## Checks
 
 ```sh

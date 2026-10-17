@@ -14,6 +14,7 @@ services:
       COLLATAS_DATA_DIR: /data
       COLLATAS_ORIGIN: ${COLLATAS_ORIGIN:-http://localhost:3000}
       COLLATAS_BOOTSTRAP_TOKEN: ${COLLATAS_BOOTSTRAP_TOKEN:?Set a random installation key of at least 32 characters}
+      COLLATAS_WEBHOOK_URL: ${COLLATAS_WEBHOOK_URL:-}
     ports:
       - ${COLLATAS_BIND:-127.0.0.1:3000}:3000
     volumes:

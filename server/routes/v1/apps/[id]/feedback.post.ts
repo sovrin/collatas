@@ -13,6 +13,7 @@ import { checkToken } from '../../../../core/token'
 import { requestSender, routeApp } from '../../../../utils/auth'
 import { collatasDatabase } from '../../../../utils/collatas'
 import { announceChange } from '../../../../utils/changes'
+import { sendFeedbackWebhook } from '../../../../utils/webhook'
 
 const PER_SENDER = 5 // per sender and app, every 10 minutes
 const PER_SENDER_DAY = 20 // per sender and app, so one sender cannot use up PER_DAY
@@ -66,8 +67,12 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'You have sent a lot of feedback. Try again later.',
     })
   }
-  addFeedback(db, app.id, body.data, { ...accepted, sender: senderTag(db, app.id, sender) })
+  const id = addFeedback(db, app.id, body.data, {
+    ...accepted,
+    sender: senderTag(db, app.id, sender),
+  })
   announceChange()
+  sendFeedbackWebhook(app, id, body.data, accepted)
   setResponseStatus(event, 201)
   return { ok: true }
 })
