@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.4](https://github.com/sovrin/collatas/compare/v0.2.3...v0.2.4) (2026-10-17)
+
+
+### Features
+
+* **form:** show characters left under the message ([3a28a00](https://github.com/sovrin/collatas/commit/3a28a00cc487cdf5849f3cb7e7545cf0d4749bea))
+
+
+### Bug Fixes
+
+* **inbox:** show the sender note only when other feedback shares the tag ([bd86d49](https://github.com/sovrin/collatas/commit/bd86d491fae5c7f6c4ea7aa346322167bb98da72))
+
 ## [0.2.3](https://github.com/sovrin/collatas/compare/v0.2.2...v0.2.3) (2026-10-17)
 
 
