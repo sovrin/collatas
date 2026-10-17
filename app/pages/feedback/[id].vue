@@ -173,7 +173,7 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
       tone="danger"
       @confirm="remove"
     >
-      <template #description>It is gone for good, including the sender's email.</template>
+      <template #description>This cannot be undone.</template>
     </ConfirmDialog>
   </div>
 </template>
