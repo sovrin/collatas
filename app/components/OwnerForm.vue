@@ -33,7 +33,7 @@ async function submit() {
   <!-- No focusable element precedes the email field: setup starts typing on the first Tab. -->
   <main class="center">
     <div class="stack gap-6">
-      <strong class="weight-600">collatas</strong>
+      <strong class="weight-600 cluster gap-2 flex-nowrap"><LogoMark />collatas</strong>
       <div class="stack gap-3">
         <h1 class="text-l weight-600">{{ setup ? 'Make yourself at home.' : 'Welcome back.' }}</h1>
         <p class="text-muted">

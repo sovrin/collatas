@@ -33,6 +33,7 @@ export default defineNuxtConfig({
       },
       title: 'collatas',
       meta: [{ name: 'description', content: 'Feedback from every app, in one place.' }],
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
     },
   },
 })

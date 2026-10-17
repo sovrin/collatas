@@ -35,7 +35,9 @@ async function logout() {
   <div class="center items-start" data-hang>
     <div class="stack gap-6">
       <nav class="cluster justify-between gap-4" aria-label="Main">
-        <NuxtLink to="/" class="link weight-600" data-quiet>collatas</NuxtLink>
+        <NuxtLink to="/" class="link weight-600 cluster gap-2 flex-nowrap" data-quiet
+          ><LogoMark />collatas</NuxtLink
+        >
         <span class="cluster gap-4">
           <NuxtLink
             v-for="section in sections"
