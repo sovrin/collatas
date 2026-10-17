@@ -9,7 +9,9 @@ COPY . .
 # build context (see compose.yaml). Build it there first.
 COPY --from=aequitas . /aequitas/dist
 ENV AEQUITAS_DIST=/aequitas/dist
-RUN pnpm install --frozen-lockfile
+# Every release changes the sources (release-please bumps package.json), so this layer always
+# reruns: keep the downloaded packages in a build cache instead, and it only links them.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --store-dir /pnpm/store
 RUN pnpm build
 
 # The built server is plain JavaScript with no native modules, so the runtime needs only node:
