@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/sovrin/collatas/compare/v0.2.1...v0.2.2) (2026-10-17)
+
+
+### Features
+
+* **app:** the version in the footer ([6f1be59](https://github.com/sovrin/collatas/commit/6f1be599a9bffa84da8b2399f14823286599179f))
+
 ## [0.2.1](https://github.com/sovrin/collatas/compare/v0.2.0...v0.2.1) (2026-10-17)
 
 
