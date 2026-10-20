@@ -1,4 +1,5 @@
 // Every rule about what collatas accepts lives here, shared by the admin pages and the server.
+// The owner's sign-in and a project's name and sites are nexitas' rules.
 import { z } from 'zod'
 
 export const KINDS = ['problem', 'idea', 'other'] as const
@@ -18,37 +19,6 @@ export const MAX_MESSAGE = 5000
 /** A new app's limits, each changeable per app. */
 export const APP_LIMITS = { maxMessage: 1024, maxFeedback: 1000, maxStorageMb: 512 } as const
 
-export const ownerCredentialsSchema = z
-  .object({
-    email: z
-      .email()
-      .max(254)
-      .transform((value) => value.toLowerCase()),
-    password: z.string().min(12, 'Use at least 12 characters.').max(256),
-  })
-  .strict()
-
-export const setupSchema = ownerCredentialsSchema.extend({ token: z.string().min(32).max(256) })
-
-export interface AuthStatus {
-  setupRequired: boolean
-  owner: { email: string } | null
-}
-
-/** Scheme, host and port only, as a browser sends it in the Origin header. */
-export function isOrigin(value: string) {
-  try {
-    const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol) && url.origin === value
-  } catch {
-    return false
-  }
-}
-
-export const appIdSchema = z
-  .string()
-  .regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'Use lowercase letters, digits and dashes.')
-
 export const contextFieldSchema = z
   .object({
     key: z
@@ -59,20 +29,9 @@ export const contextFieldSchema = z
   .strict()
 export type ContextField = z.infer<typeof contextFieldSchema>
 
-export const appConfigSchema = z
+/** What the owner sets for an app. Its project holds its name and the sites that may send. */
+export const appSettingsSchema = z
   .object({
-    id: appIdSchema,
-    name: z.string().trim().min(1, 'Give the app a name.').max(60),
-    origins: z
-      .array(
-        z
-          .string()
-          .trim()
-          .transform((value) => value.replace(/\/$/, ''))
-          .refine(isOrigin, 'Enter an origin like https://sonotas.example.com, without a path.'),
-      )
-      .min(1, 'Add the site that shows the form.')
-      .max(10),
     kinds: z
       .array(z.enum(KINDS))
       .min(1, 'Offer at least one kind.')
@@ -104,7 +63,30 @@ export const appConfigSchema = z
     enabled: z.boolean(),
   })
   .strict()
-export type AppConfig = z.infer<typeof appConfigSchema>
+export type AppSettings = z.infer<typeof appSettingsSchema>
+
+/** A new app's settings, each changeable on its page. */
+export const APP_DEFAULTS: AppSettings = {
+  kinds: ['problem', 'idea'],
+  context: [],
+  sendPage: true,
+  issueRepo: '',
+  retentionDays: 180,
+  ...APP_LIMITS,
+  enabled: true,
+}
+
+/** Starts collecting feedback for a project: its app takes the project's id and the defaults. */
+export const newAppSchema = z.object({ projectId: z.string().max(64) }).strict()
+
+/** An app with its project's name and sites. Its id is the one the embedded form names: the
+ *  project's, unless it was registered before projects. */
+export interface AppConfig extends AppSettings {
+  id: string
+  projectId: string
+  name: string
+  origins: string[]
+}
 
 export interface AppSummary extends AppConfig {
   newCount: number

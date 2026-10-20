@@ -1,11 +1,9 @@
 import { deleteFeedback } from '../../../core/feedback'
-import { requireOwner } from '../../../utils/auth'
-import { collatasDatabase } from '../../../utils/collatas'
-import { announceChange } from '../../../utils/changes'
+import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
+import { announceChange } from '#nexitas/server/utils/changes'
 
 export default defineEventHandler((event) => {
-  requireOwner(event)
-  deleteFeedback(collatasDatabase(), getRouterParam(event, 'id') ?? '')
+  deleteFeedback(nexitasDatabase(), getRouterParam(event, 'id') ?? '')
   announceChange()
   return { ok: true }
 })

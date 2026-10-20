@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { AppSummary, FeedbackPage, InboxGroup } from '#shared/contracts'
-import { KIND_LABELS, MAX_SEARCH } from '#shared/contracts'
-import { excerpt, feedbackStates, kindIcons } from '~/lib/feedback'
-import { errorMessage, formatAge } from '~/lib/format'
+import type { AppSummary, FeedbackPage, InboxGroup } from '../../../shared/contracts'
+import { KIND_LABELS, MAX_SEARCH } from '../../../shared/contracts'
+import { excerpt, feedbackStates, kindIcons } from '../../lib/feedback'
+import { errorMessage } from '#nexitas/app/lib/format'
+import { formatAge } from '../../lib/format'
 
 const FILTERS = [
   { value: 'open', label: 'Open' },
@@ -19,7 +20,8 @@ const app = computed(() => (typeof route.query.app === 'string' ? route.query.ap
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
 const view = computed(() => `${filter.value}|${app.value}|${page.value}|${q.value}`)
-useHead({ title: () => `${app.value ? `${app.value} · ` : ''}Inbox · collatas` })
+const { name } = useRuntimeConfig().public.nexitas
+useHead({ title: () => `${app.value ? `${app.value} · ` : ''}Inbox · ${name}` })
 
 // Across all apps the server sends each app's counts and newest few; one app's view is paged.
 const { data, error, refresh } = await useFetch<InboxGroup[] | FeedbackPage>(
@@ -55,7 +57,7 @@ const pages = computed(() =>
 function inbox(next: { filter?: string; app?: string; page?: number; q?: string }) {
   const query = { filter: filter.value, app: app.value, page: 1, q: q.value, ...next }
   return {
-    path: '/',
+    path: '/feedback',
     query: {
       ...(query.filter !== 'open' ? { filter: query.filter } : {}),
       ...(query.app ? { app: query.app } : {}),
@@ -76,7 +78,7 @@ const countLabel = (count: number) =>
 
 const empty = computed(() =>
   !apps.value?.length
-    ? 'Nothing yet. Register an app under Apps and embed its form.'
+    ? 'Nothing yet. Collect feedback on a project’s page and embed its form.'
     : q.value
       ? `Nothing matches “${q.value}” here.`
       : filter.value === 'open'
@@ -90,7 +92,7 @@ const empty = computed(() =>
     <h1 class="sr-only">{{ app ? `Inbox of ${app}` : 'Inbox' }}</h1>
     <nav v-if="app" aria-label="Breadcrumb">
       <ol class="breadcrumb">
-        <li><NuxtLink :to="inbox({ app: '' })">All apps</NuxtLink></li>
+        <li><NuxtLink :to="inbox({ app: '' })">Inbox</NuxtLink></li>
         <li aria-current="page" class="font-mono">{{ app }}</li>
       </ol>
     </nav>

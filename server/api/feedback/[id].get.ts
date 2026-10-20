@@ -1,12 +1,10 @@
-import type { FeedbackDetail } from '#shared/contracts'
+import type { FeedbackDetail } from '../../../shared/contracts'
 import { getApp } from '../../core/apps'
 import { getFeedback, issueLink, sameSenderCount } from '../../core/feedback'
-import { requireOwner } from '../../utils/auth'
-import { collatasDatabase } from '../../utils/collatas'
+import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 
 export default defineEventHandler((event): FeedbackDetail => {
-  requireOwner(event)
-  const db = collatasDatabase()
+  const db = nexitasDatabase()
   const item = getFeedback(db, getRouterParam(event, 'id') ?? '')
   const app = item && getApp(db, item.appId)
   if (!item || !app) throw createError({ statusCode: 404, statusMessage: 'This feedback is gone.' })

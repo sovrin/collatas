@@ -1,35 +1,22 @@
 <script setup lang="ts">
-import type { AppConfig, ContextField } from '#shared/contracts'
-import { APP_LIMITS, KIND_LABELS, KINDS, MAX_MESSAGE } from '#shared/contracts'
-import { errorMessage } from '~/lib/format'
+import type { AppConfig, AppSettings, ContextField } from '../../shared/contracts'
+import { KIND_LABELS, KINDS, MAX_MESSAGE } from '../../shared/contracts'
+import { errorMessage } from '#nexitas/app/lib/format'
 
-/** Registers an app, or changes one. What the app's form offers and who may send it all lives
- *  here, so nothing about an app is configured in files. */
-const props = defineProps<{ app?: AppConfig }>()
+/** Changes what an app's form offers. Its name and the sites that may send are its project's,
+ *  set on the project's page, so nothing about an app is configured in files. */
+const props = defineProps<{ app: AppConfig }>()
 const emit = defineEmits<{ saved: [AppConfig] }>()
 
-const name = ref(props.app?.name ?? '')
-const id = ref(props.app?.id ?? '')
-const idTouched = ref(!!props.app)
-// A new app's id follows its name until it is edited by hand.
-watch(name, (value) => {
-  if (!idTouched.value)
-    id.value = value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 40)
-})
-const origins = ref(props.app?.origins.join('\n') ?? '')
-const kinds = ref<string[]>(props.app?.kinds ?? ['problem', 'idea'])
-const context = ref<ContextField[]>(props.app?.context.map((field) => ({ ...field })) ?? [])
-const sendPage = ref(props.app?.sendPage ?? true)
-const issueRepo = ref(props.app?.issueRepo ?? '')
-const retentionDays = ref(props.app?.retentionDays ?? 180)
-const maxMessage = ref(props.app?.maxMessage ?? APP_LIMITS.maxMessage)
-const maxFeedback = ref(props.app?.maxFeedback ?? APP_LIMITS.maxFeedback)
-const maxStorageMb = ref(props.app?.maxStorageMb ?? APP_LIMITS.maxStorageMb)
-const enabled = ref(props.app?.enabled ?? true)
+const kinds = ref<string[]>(props.app.kinds)
+const context = ref<ContextField[]>(props.app.context.map((field) => ({ ...field })))
+const sendPage = ref(props.app.sendPage)
+const issueRepo = ref(props.app.issueRepo)
+const retentionDays = ref(props.app.retentionDays)
+const maxMessage = ref(props.app.maxMessage)
+const maxFeedback = ref(props.app.maxFeedback)
+const maxStorageMb = ref(props.app.maxStorageMb)
+const enabled = ref(props.app.enabled)
 const moreOpen = ref(false)
 
 const pending = ref(false)
@@ -47,13 +34,7 @@ async function save() {
   pending.value = true
   error.value = ''
   issues.value = []
-  const body: AppConfig = {
-    id: id.value,
-    name: name.value,
-    origins: origins.value
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean),
+  const body: AppSettings = {
     kinds: KINDS.filter((kind) => kinds.value.includes(kind)),
     context: context.value.map((field) => ({ key: field.key.trim(), max: Number(field.max) })),
     sendPage: sendPage.value,
@@ -65,22 +46,14 @@ async function save() {
     enabled: enabled.value,
   }
   try {
-    const saved = await $fetch<AppConfig>(props.app ? `/api/apps/${props.app.id}` : '/api/apps', {
-      method: 'POST',
-      body,
-    })
+    const saved = await $fetch<AppConfig>(`/api/apps/${props.app.id}`, { method: 'POST', body })
     emit('saved', saved)
   } catch (cause) {
     const data = (cause as { data?: { data?: { issues?: typeof issues.value } } }).data?.data
     if (data?.issues?.length) {
       issues.value = data.issues
       // A problem in a hidden setting opens them, so it can be seen.
-      if (
-        issues.value.some(
-          (issue) => !['name', 'id', 'origins', 'kinds'].includes(issue.path.split('.')[0]!),
-        )
-      )
-        moreOpen.value = true
+      if (issues.value.some((issue) => issue.path.split('.')[0] !== 'kinds')) moreOpen.value = true
     } else error.value = errorMessage(cause)
   } finally {
     pending.value = false
@@ -93,59 +66,6 @@ async function save() {
     <fieldset :disabled="pending" class="stack gap-5">
       <!-- What every app needs, as one short list; the rest is behind More settings. -->
       <dl class="properties">
-        <dt><label for="name">Name</label></dt>
-        <dd class="field items-stretch">
-          <input
-            id="name"
-            v-model="name"
-            class="input"
-            data-size="s"
-            required
-            maxlength="60"
-            placeholder="sonotas"
-            autocomplete="off"
-            :aria-invalid="!!fieldError('name') || undefined"
-          />
-          <span v-if="fieldError('name')" data-error>{{ fieldError('name') }}</span>
-        </dd>
-        <dt><label for="id">Id</label></dt>
-        <dd class="field items-stretch">
-          <input
-            id="id"
-            v-model="id"
-            class="input font-mono text-s"
-            data-size="s"
-            required
-            maxlength="40"
-            autocomplete="off"
-            spellcheck="false"
-            :readonly="!!app"
-            :aria-invalid="!!fieldError('id') || undefined"
-            aria-describedby="id-help"
-            @input="idTouched = true"
-          />
-          <small id="id-help">{{
-            app
-              ? 'Fixed: the embedded form refers to it.'
-              : 'Used by the embedded form. It cannot change later.'
-          }}</small>
-          <span v-if="fieldError('id')" data-error>{{ fieldError('id') }}</span>
-        </dd>
-        <dt><label for="origins">Sites</label></dt>
-        <dd class="field items-stretch">
-          <textarea
-            id="origins"
-            v-model="origins"
-            class="input font-mono text-s"
-            required
-            spellcheck="false"
-            placeholder="https://sonotas.example.com"
-            :aria-invalid="!!fieldError('origins') || undefined"
-            aria-describedby="origins-help"
-          ></textarea>
-          <small id="origins-help">One per line. Only these may show the form and send.</small>
-          <span v-if="fieldError('origins')" data-error>{{ fieldError('origins') }}</span>
-        </dd>
         <dt>Offers</dt>
         <dd class="field">
           <div class="cluster gap-4" role="group" aria-label="Kinds of feedback">
@@ -357,7 +277,7 @@ async function save() {
       <p class="caption">
         {{
           enabled
-            ? 'The form works on the sites above.'
+            ? 'The form works on the project’s sites.'
             : 'Paused: the form says it is unavailable.'
         }}
       </p>
@@ -369,7 +289,7 @@ async function save() {
         :disabled="pending"
         :aria-busy="pending || undefined"
       >
-        {{ app ? 'Save changes' : 'Add app' }}
+        Save changes
       </button>
     </div>
   </form>

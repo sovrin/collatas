@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import type { FeedbackDetail, Status } from '#shared/contracts'
-import { KIND_LABELS } from '#shared/contracts'
-import { errorMessage, formatTime } from '~/lib/format'
+import type { FeedbackDetail, Status } from '../../../shared/contracts'
+import { KIND_LABELS } from '../../../shared/contracts'
+import { errorMessage } from '#nexitas/app/lib/format'
+import { formatTime } from '../../lib/format'
 
 const route = useRoute()
 const id = route.params.id as string
 const { data: item, error, refresh } = await useFetch<FeedbackDetail>(`/api/feedback/${id}`)
-useHead({ title: () => `${item.value ? KIND_LABELS[item.value.kind] : 'Feedback'} · collatas` })
+const { name } = useRuntimeConfig().public.nexitas
+useHead({ title: () => `${item.value ? KIND_LABELS[item.value.kind] : 'Feedback'} · ${name}` })
 
 const router = useRouter()
 /** The inbox view this entry was opened from (the overview, or one app's page), else the overview. */
 function inboxBack() {
   const back = router.options.history.state.back
-  return typeof back === 'string' && /^\/(\?|$)/.test(back) ? back : '/'
+  return typeof back === 'string' && /^\/feedback(\?|$)/.test(back) ? back : '/feedback'
 }
 
 const pending = ref(false)
@@ -51,10 +53,10 @@ onMounted(() => {
   if (item.value?.status === 'new') setStatus('seen')
 })
 
-const NEXT: { status: Status; label: string; icon: string }[] = [
-  { status: 'done', label: 'Mark done', icon: 'check' },
-  { status: 'spam', label: 'Mark spam', icon: 'ban' },
-  { status: 'new', label: 'Mark unread and go back', icon: 'mail' },
+const NEXT: { status: Status; label: string }[] = [
+  { status: 'done', label: 'Mark done' },
+  { status: 'spam', label: 'Mark spam' },
+  { status: 'new', label: 'Mark unread and go back' },
 ]
 </script>
 
@@ -62,9 +64,11 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
   <div>
     <nav aria-label="Breadcrumb" class="mb-5">
       <ol class="breadcrumb">
-        <li><NuxtLink to="/">Inbox</NuxtLink></li>
+        <li><NuxtLink to="/feedback">Inbox</NuxtLink></li>
         <li v-if="item">
-          <NuxtLink :to="`/?app=${item.appId}`" class="font-mono">{{ item.appId }}</NuxtLink>
+          <NuxtLink :to="`/feedback?app=${item.appId}`" class="font-mono">{{
+            item.appId
+          }}</NuxtLink>
         </li>
         <li aria-current="page">{{ item ? KIND_LABELS[item.kind] : 'Feedback' }}</li>
       </ol>
@@ -101,7 +105,7 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
           <dt>Sender</dt>
           <dd>
             <NuxtLink
-              :to="{ path: '/', query: { filter: 'all', q: item.sender } }"
+              :to="{ path: '/feedback', query: { filter: 'all', q: item.sender } }"
               class="link font-mono"
               >{{ item.sender }}</NuxtLink
             >
@@ -120,48 +124,33 @@ const NEXT: { status: Status; label: string; icon: string }[] = [
         <div><strong>That did not work.</strong> {{ actionError }}</div>
       </div>
 
-      <div class="cluster gap-1 hairline-t pt-4">
+      <!-- Text actions, as everywhere in the suite; deleting is the one in danger ink, at the end. -->
+      <div class="cluster gap-4 hairline-t pt-4 text-s">
+        <button
+          v-for="next in NEXT.filter((option) => option.status !== item!.status)"
+          :key="next.status"
+          type="button"
+          class="link"
+          :disabled="pending"
+          @click="setStatus(next.status)"
+        >
+          {{ next.label }}
+        </button>
         <a
           v-if="item.issueLink"
           :href="item.issueLink"
           target="_blank"
           rel="noopener noreferrer"
-          class="btn"
-          data-icon
-          data-size="s"
-          data-variant="ghost"
-          aria-label="Make a GitHub issue"
-          data-tip="Make a GitHub issue"
-          ><i class="icon" data-icon="circle-dot"></i
-        ></a>
-        <button
-          v-for="next in NEXT.filter((option) => option.status !== item!.status)"
-          :key="next.status"
-          type="button"
-          class="btn"
-          data-icon
-          data-size="s"
-          data-variant="ghost"
-          :aria-label="next.label"
-          :data-tip="next.label"
-          :disabled="pending"
-          @click="setStatus(next.status)"
+          class="link"
+          >Make a GitHub issue</a
         >
-          <i class="icon" :data-icon="next.icon"></i>
-        </button>
         <button
           type="button"
-          class="btn end"
-          data-icon
-          data-size="s"
-          data-variant="ghost"
-          data-tone="danger"
-          aria-label="Delete"
-          data-tip="Delete"
+          class="link text-danger end"
           :disabled="pending"
           @click="deleteOpen = true"
         >
-          <i class="icon" data-icon="trash"></i>
+          Delete
         </button>
       </div>
     </div>

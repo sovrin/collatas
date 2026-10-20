@@ -9,7 +9,7 @@ import type {
   Status,
   Submission,
 } from '../../shared/contracts'
-import { secret } from './database'
+import { secret } from './secrets'
 
 const DAY = 24 * 60 * 60 * 1000
 const MB = 1024 * 1024
@@ -202,7 +202,8 @@ export function inboxOverview(
   const rows = db
     .prepare(
       `WITH matching AS (
-        SELECT feedback.*, apps.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
+        SELECT feedback.*, projects.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
+          JOIN projects ON projects.id = apps.project_id
         ${where}
       ), ranked AS (
         SELECT *, row_number() OVER (PARTITION BY app_id ORDER BY created_at DESC, id) AS rank
@@ -254,7 +255,8 @@ export function feedbackPage(
     .get(...params) as { total: number; new_count: number }
   const rows = db
     .prepare(
-      `SELECT feedback.*, apps.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
+      `SELECT feedback.*, projects.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
+          JOIN projects ON projects.id = apps.project_id
       ${where} ORDER BY feedback.created_at DESC, feedback.id LIMIT ? OFFSET ?`,
     )
     .all(...params, pageSize, (page - 1) * pageSize) as unknown as FeedbackRow[]
@@ -264,7 +266,8 @@ export function feedbackPage(
 export function getFeedback(db: DatabaseSync, id: string): FeedbackItem | null {
   const row = db
     .prepare(
-      `SELECT feedback.*, apps.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
+      `SELECT feedback.*, projects.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
+          JOIN projects ON projects.id = apps.project_id
       WHERE feedback.id = ?`,
     )
     .get(id) as FeedbackRow | undefined
@@ -294,12 +297,14 @@ export function deleteFeedback(db: DatabaseSync, id: string) {
   return db.prepare('DELETE FROM feedback WHERE id = ?').run(id).changes === 1
 }
 
-export function countNew(db: DatabaseSync) {
-  return (
-    db.prepare("SELECT count(*) AS count FROM feedback WHERE status = 'new'").get() as {
-      count: number
-    }
-  ).count
+/** Unread feedback, across apps or for one. */
+export function countNew(db: DatabaseSync, appId?: string) {
+  const row = appId
+    ? db
+        .prepare("SELECT count(*) AS count FROM feedback WHERE status = 'new' AND app_id = ?")
+        .get(appId)
+    : db.prepare("SELECT count(*) AS count FROM feedback WHERE status = 'new'").get()
+  return (row as { count: number }).count
 }
 
 /** Deletes feedback of any status once its app's retention has passed since its last change:

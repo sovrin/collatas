@@ -1,10 +1,12 @@
-// The registered apps: who may send feedback, and what the form offers them.
+// The apps feedback is collected for, one per project: what the form offers. Who may send it is
+// the project's, in nexitas.
 import type { DatabaseSync } from 'node:sqlite'
-import type { AppConfig, AppSummary } from '../../shared/contracts'
+import type { AppConfig, AppSettings, AppSummary } from '../../shared/contracts'
 import { isFull, STORED_BYTES } from './feedback'
 
 interface AppRow {
   id: string
+  project_id: string
   name: string
   origins: string
   kinds: string
@@ -18,9 +20,14 @@ interface AppRow {
   enabled: number
 }
 
+// An app with what it takes from its project.
+const APPS = `SELECT apps.*, projects.name, projects.origins
+  FROM apps JOIN projects ON projects.id = apps.project_id`
+
 function toConfig(row: AppRow): AppConfig {
   return {
     id: row.id,
+    projectId: row.project_id,
     name: row.name,
     origins: JSON.parse(row.origins),
     kinds: JSON.parse(row.kinds),
@@ -38,11 +45,11 @@ function toConfig(row: AppRow): AppConfig {
 export function listApps(db: DatabaseSync): AppSummary[] {
   const rows = db
     .prepare(
-      `SELECT apps.*,
-        (SELECT count(*) FROM feedback WHERE app_id = apps.id AND status = 'new') AS new_count,
-        (SELECT count(*) FROM feedback WHERE app_id = apps.id) AS total_count,
-        (SELECT ${STORED_BYTES} FROM feedback WHERE app_id = apps.id) AS stored_bytes
-      FROM apps ORDER BY name COLLATE NOCASE`,
+      `SELECT app.*,
+        (SELECT count(*) FROM feedback WHERE app_id = app.id AND status = 'new') AS new_count,
+        (SELECT count(*) FROM feedback WHERE app_id = app.id) AS total_count,
+        (SELECT ${STORED_BYTES} FROM feedback WHERE app_id = app.id) AS stored_bytes
+      FROM (${APPS}) AS app ORDER BY name COLLATE NOCASE`,
     )
     .all() as unknown as (AppRow & {
     new_count: number
@@ -61,14 +68,18 @@ export function listApps(db: DatabaseSync): AppSummary[] {
 }
 
 export function getApp(db: DatabaseSync, id: string): AppConfig | null {
-  const row = db.prepare('SELECT * FROM apps WHERE id = ?').get(id) as AppRow | undefined
+  const row = db.prepare(`${APPS} WHERE apps.id = ?`).get(id) as AppRow | undefined
   return row ? toConfig(row) : null
 }
 
-function values(app: AppConfig) {
+/** The project's app, if it collects feedback. */
+export function getProjectApp(db: DatabaseSync, projectId: string): AppConfig | null {
+  const row = db.prepare(`${APPS} WHERE apps.project_id = ?`).get(projectId) as AppRow | undefined
+  return row ? toConfig(row) : null
+}
+
+function values(app: AppSettings) {
   return [
-    app.name,
-    JSON.stringify(app.origins),
     JSON.stringify(app.kinds),
     JSON.stringify(app.context),
     app.sendPage ? 1 : 0,
@@ -81,26 +92,30 @@ function values(app: AppConfig) {
   ] as const
 }
 
-/** False when an app with this id exists already. */
-export function createApp(db: DatabaseSync, app: AppConfig, now = Date.now()) {
+/** False when the project has an app, or an app has this id, already. */
+export function createApp(
+  db: DatabaseSync,
+  app: AppSettings & { id: string; projectId: string },
+  now = Date.now(),
+) {
   return (
     db
       .prepare(
         `INSERT OR IGNORE INTO apps
-          (id, name, origins, kinds, context, send_page, issue_repo, retention_days, max_message,
+          (id, project_id, kinds, context, send_page, issue_repo, retention_days, max_message,
             max_feedback, max_storage_mb, enabled, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(app.id, ...values(app), now, now).changes === 1
+      .run(app.id, app.projectId, ...values(app), now, now).changes === 1
   )
 }
 
 /** The id never changes: feedback and the embedded forms refer to it. */
-export function updateApp(db: DatabaseSync, id: string, app: AppConfig, now = Date.now()) {
+export function updateApp(db: DatabaseSync, id: string, app: AppSettings, now = Date.now()) {
   return (
     db
       .prepare(
-        `UPDATE apps SET name = ?, origins = ?, kinds = ?, context = ?, send_page = ?,
+        `UPDATE apps SET kinds = ?, context = ?, send_page = ?,
           issue_repo = ?, retention_days = ?, max_message = ?, max_feedback = ?,
           max_storage_mb = ?, enabled = ?, updated_at = ?
         WHERE id = ?`,

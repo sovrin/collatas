@@ -1,17 +1,21 @@
-import { resolve } from 'node:path'
-import { openDatabase } from '../core/database'
+import { createHmac } from 'node:crypto'
+import type { H3Event } from 'h3'
+import { nexitasDatabase, requestSender } from '#nexitas/server/utils/nexitas'
+import { getApp } from '../core/apps'
+import { secret } from '../core/secrets'
 
-let database: ReturnType<typeof openDatabase> | undefined
-
-export function collatasDatabase() {
-  const dataDir = process.env.COLLATAS_DATA_DIR
-  if (!dataDir) throw new Error('COLLATAS_DATA_DIR must be set for the web server.')
-  return (database ??= openDatabase(resolve(dataDir)))
+/** Who is sending feedback, for its limits and its sender tag: the sender's network, keyed with
+ *  a secret, so the database never holds an IP address. */
+export function senderKey(event: H3Event) {
+  return createHmac('sha256', secret(nexitasDatabase(), 'sender-key'))
+    .update(requestSender(event))
+    .digest('base64url')
 }
 
-/** Where the admin interface lives; its own requests must come from here. */
-export function collatasOrigin() {
-  const configured = process.env.COLLATAS_ORIGIN
-  if (!configured) throw new Error('COLLATAS_ORIGIN must be set for the web server.')
-  return new URL(configured).origin
+/** The app named in the route, or a 404. */
+export function routeApp(event: H3Event) {
+  const id = getRouterParam(event, 'id') ?? ''
+  const app = getApp(nexitasDatabase(), id)
+  if (!app) throw createError({ statusCode: 404, statusMessage: 'This app is not registered.' })
+  return app
 }

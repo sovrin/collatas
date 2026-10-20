@@ -1,11 +1,10 @@
 import { deleteApp } from '../../../core/apps'
-import { requireOwner, routeApp } from '../../../utils/auth'
-import { collatasDatabase } from '../../../utils/collatas'
-import { announceChange } from '../../../utils/changes'
+import { routeApp } from '../../../utils/collatas'
+import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
+import { announceChange } from '#nexitas/server/utils/changes'
 
 export default defineEventHandler((event) => {
-  requireOwner(event)
-  deleteApp(collatasDatabase(), routeApp(event).id)
+  deleteApp(nexitasDatabase(), routeApp(event).id)
   announceChange()
   return { ok: true }
 })

@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { STATUSES, searchSchema } from '#shared/contracts'
+import { STATUSES, searchSchema } from '../../shared/contracts'
 import type { InboxFilter } from '../core/feedback'
 
 const FILTERS: readonly string[] = ['open', 'all', ...STATUSES]

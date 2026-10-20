@@ -1,8 +1,9 @@
 import { listApps } from '../../core/apps'
-import { requireOwner } from '../../utils/auth'
-import { collatasDatabase } from '../../utils/collatas'
+import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 
+// Every app, or the one of ?project=.
 export default defineEventHandler((event) => {
-  requireOwner(event)
-  return listApps(collatasDatabase())
+  const { project } = getQuery(event)
+  const apps = listApps(nexitasDatabase())
+  return typeof project === 'string' ? apps.filter((app) => app.projectId === project) : apps
 })
