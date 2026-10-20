@@ -56,10 +56,10 @@ aequitas and collatas next to each other, build aequitas once
 ```sh
 pnpm install
 ln -s ../../collatas ../nexitas/.modules/collatas
-cd ../nexitas && pnpm modules && pnpm install && pnpm dev
+cd ../nexitas && node scripts/modules.ts && pnpm install && pnpm dev
 ```
 
-`pnpm modules` fetches the other modules nexitas lists and leaves the symlink to this checkout as
+`node scripts/modules.ts` fetches the other modules nexitas lists and leaves the symlink to this checkout as
 it is. Open http://localhost:3000, create the owner with the key in nexitas' `.data/bootstrap-token`,
 and switch Feedback on, at setup or under Modules. The typecheck of the pages and server runs in
 nexitas (`pnpm check` there); here `pnpm check` covers the form component and the unit tests.
