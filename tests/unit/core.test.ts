@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
-import { appConfigSchema, type AppConfig, type Submission } from '../../shared/contracts'
-import { createApp, deleteApp, getApp, listApps, updateApp } from '../../server/core/apps'
-import { consumeAttempt, consumeAuthAttempt, senderNetwork } from '../../server/core/auth'
-import { openDatabase, secret } from '../../server/core/database'
+import { appSettingsSchema, type AppConfig, type Submission } from '../../shared/contracts'
+import { createApp as addApp, deleteApp, getApp, listApps, updateApp } from '../../server/core/apps'
+import { openDatabase } from '#nexitas/server/core/database'
+import { createProject } from '#nexitas/server/core/projects'
 import {
   acceptSubmission,
   addFeedback,
@@ -24,6 +24,9 @@ import {
   senderTag,
   setStatus,
 } from '../../server/core/feedback'
+import { consumeAttempt } from '../../server/core/limits'
+import { collatas } from '../../server/core/module'
+import { secret } from '../../server/core/secrets'
 import { checkToken, issueToken } from '../../server/core/token'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -36,7 +39,7 @@ const dbs: DatabaseSync[] = []
 function database() {
   const dir = mkdtempSync(join(tmpdir(), 'collatas-test-'))
   dirs.push(dir)
-  const db = openDatabase(dir)
+  const db = openDatabase(join(dir, 'collatas.sqlite'), [collatas])
   dbs.push(db)
   return db
 }
@@ -48,6 +51,7 @@ afterEach(() => {
 
 const sonotas: AppConfig = {
   id: 'sonotas',
+  projectId: 'sonotas',
   name: 'sonotas',
   origins: ['https://sonotas.example.com'],
   kinds: ['problem', 'idea'],
@@ -63,6 +67,21 @@ const sonotas: AppConfig = {
   maxStorageMb: 512,
   enabled: true,
 }
+
+/** Registers the app on a project of its own id, as the project's page does. */
+function createApp(db: DatabaseSync, app: AppConfig) {
+  createProject(db, { id: app.id, name: app.name, origins: app.origins })
+  return addApp(db, { ...app, projectId: app.id })
+}
+
+/** An app's own settings, without what its project holds. */
+const settings = ({
+  id: _id,
+  projectId: _project,
+  name: _name,
+  origins: _origins,
+  ...rest
+}: AppConfig) => rest
 
 const submission = (overrides: Partial<Submission> = {}): Submission => ({
   token: '',
@@ -85,18 +104,12 @@ describe('form tokens', () => {
 })
 
 describe('app settings', () => {
-  it('accept origins without a trailing slash and refuse paths', () => {
-    const parsed = appConfigSchema.parse({ ...sonotas, origins: ['https://sonotas.example.com/'] })
-    expect(parsed.origins).toEqual(['https://sonotas.example.com'])
+  it('refuse no kinds and a context field twice', () => {
+    expect(appSettingsSchema.safeParse(settings(sonotas)).success).toBe(true)
+    expect(appSettingsSchema.safeParse({ ...settings(sonotas), kinds: [] }).success).toBe(false)
     expect(
-      appConfigSchema.safeParse({ ...sonotas, origins: ['https://sonotas.example.com/app'] })
-        .success,
-    ).toBe(false)
-    expect(appConfigSchema.safeParse({ ...sonotas, id: 'Sonotas' }).success).toBe(false)
-    expect(appConfigSchema.safeParse({ ...sonotas, kinds: [] }).success).toBe(false)
-    expect(
-      appConfigSchema.safeParse({
-        ...sonotas,
+      appSettingsSchema.safeParse({
+        ...settings(sonotas),
         context: [
           { key: 'a', max: 1 },
           { key: 'a', max: 2 },
@@ -112,9 +125,29 @@ describe('app settings', () => {
     expect(getApp(db, 'sonotas')).toEqual(sonotas)
     addFeedback(db, 'sonotas', submission(), NOTHING)
     expect(listApps(db)[0]).toMatchObject({ id: 'sonotas', newCount: 1, totalCount: 1 })
-    updateApp(db, 'sonotas', { ...sonotas, enabled: false })
+    updateApp(db, 'sonotas', { ...settings(sonotas), enabled: false })
     expect(getApp(db, 'sonotas')?.enabled).toBe(false)
     expect(deleteApp(db, 'sonotas')).toBe(true)
+    expect(list(db, 'all')).toEqual([])
+  })
+})
+
+describe('projects', () => {
+  it('show their new feedback, and take their app and its feedback when they go', () => {
+    const db = database()
+    createProject(db, { id: 'bare', name: 'bare', origins: ['https://bare.example.com'] })
+    expect(collatas.projectStatus!(db, 'bare')).toEqual([])
+    createApp(db, sonotas)
+    expect(collatas.projectStatus!(db, 'sonotas')).toEqual([
+      { text: 'no new feedback', to: '/feedback?app=sonotas' },
+    ])
+    addFeedback(db, 'sonotas', submission(), NOTHING)
+    expect(collatas.projectStatus!(db, 'sonotas')).toEqual([
+      { text: '1 new feedback', to: '/feedback?app=sonotas', tone: 'warning' },
+    ])
+    expect(addApp(db, { ...sonotas, id: 'second' })).toBe(false)
+    collatas.deleteProject!(db, 'sonotas')
+    expect(getApp(db, 'sonotas')).toBeNull()
     expect(list(db, 'all')).toEqual([])
   })
 })
@@ -265,27 +298,10 @@ describe('retention', () => {
     expect(list(db, 'all')).toHaveLength(2)
   })
 
-  it('refuses keeping forever, and moves apps that did to the longest retention', () => {
-    expect(appConfigSchema.safeParse({ ...sonotas, retentionDays: 0 }).success).toBe(false)
-    const dir = mkdtempSync(join(tmpdir(), 'collatas-test-'))
-    dirs.push(dir)
-    const before = openDatabase(dir)
-    createApp(before, { ...sonotas, retentionDays: 1 })
-    // back to how a version 1 database looked
-    before.exec(
-      `UPDATE apps SET retention_days = 0; ALTER TABLE feedback DROP COLUMN sender;
-      ALTER TABLE apps DROP COLUMN max_message; ALTER TABLE apps DROP COLUMN max_feedback;
-      ALTER TABLE apps DROP COLUMN max_storage_mb; PRAGMA user_version = 1;`,
+  it('refuses keeping forever', () => {
+    expect(appSettingsSchema.safeParse({ ...settings(sonotas), retentionDays: 0 }).success).toBe(
+      false,
     )
-    before.close()
-    const db = openDatabase(dir)
-    dbs.push(db)
-    expect(getApp(db, 'sonotas')).toMatchObject({
-      retentionDays: 3650,
-      maxMessage: 1024,
-      maxFeedback: 1000,
-      maxStorageMb: 512,
-    })
   })
 })
 
@@ -364,26 +380,6 @@ describe('rate limits and secrets', () => {
     for (let i = 0; i < 5; i++) expect(consumeAttempt(db, 'send:a:1', 5, 60_000, 0)).toBe(0)
     expect(consumeAttempt(db, 'send:a:1', 5, 60_000, 1000)).toBe(59)
     expect(consumeAttempt(db, 'send:a:1', 5, 60_000, 60_001)).toBe(0)
-  })
-
-  it('limit sign-in per sender, under a ceiling for everyone', () => {
-    const db = database()
-    for (let i = 0; i < 10; i++) expect(consumeAuthAttempt(db, 'login', 'a', 0)).toBe(0)
-    expect(consumeAuthAttempt(db, 'login', 'a', 0)).toBeGreaterThan(0)
-    // one sender used up its attempts; another can still sign in
-    expect(consumeAuthAttempt(db, 'login', 'b', 0)).toBe(0)
-    for (let i = 0; i < 89; i++) consumeAuthAttempt(db, 'login', `s${i}`, 0)
-    expect(consumeAuthAttempt(db, 'login', 'c', 0)).toBeGreaterThan(0)
-  })
-
-  it('count an IPv6 sender by its /64, and IPv4 as it is', () => {
-    expect(senderNetwork('2001:db8:1:2:a:b:c:d')).toBe('2001:db8:1:2::/64')
-    expect(senderNetwork('2001:db8:1:2::5')).toBe('2001:db8:1:2::/64')
-    expect(senderNetwork('2001:DB8::5')).toBe('2001:db8:0:0::/64')
-    expect(senderNetwork('2001:db8:0:0:ffff::1')).toBe(senderNetwork('2001:db8::2'))
-    expect(senderNetwork('fe80::1%eth0')).toBe('fe80:0:0:0::/64')
-    expect(senderNetwork('203.0.113.7')).toBe('203.0.113.7')
-    expect(senderNetwork('::ffff:203.0.113.7')).toBe('203.0.113.7')
   })
 
   it('keep a secret once created', () => {

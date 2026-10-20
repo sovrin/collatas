@@ -1,79 +1,8 @@
-/* collatas is composed from aequitas components, layouts and utilities. This file holds only what
-   aequitas does not: the theme knobs, the hanging offset, choice states, marker size and how a message is set. Unlayered, so it
-   wins over aequitas' layers; tokens only.
+/* What only collatas needs on top of the nexitas shell (nexitas.css): how a message is set, and how
+   a row's title changes state. Unlayered, so it wins over aequitas' layers; tokens only.
 
-   The direction is text-first minimalism: one small column centred on a blank page (aequitas'
-   .center), compact density with a smaller type base, no panels, colour only for state. Anything a
-   person could type into a terminal (app ids, origins, URLs, context values, times) is mono. */
-
-:root {
-  /* Cool slate greys behind the text, colour still reserved for state. */
-  --ae-neutral-hue: 250;
-  /* 14px: a small tool, not a dashboard. Every aequitas type step scales from this; any smaller and
-     the small step (base / sqrt(phi)) drops below aequitas' 11px floor for the extra-small one. */
-  --ae-text-base: 0.875rem;
-}
-
-/* A blank page: the plain surface (white in light mode), and no drifting aurora behind it. */
-body {
-  background: var(--ae-surface);
-
-  &::before {
-    content: none;
-  }
-}
-
-/* aequitas' .center leaves its grid track auto-sized, so the column's min(100%, …) resolves against
-   its own content and overflows a phone. One full-width track lets it shrink.
-   shortcut: remove once aequitas' .center sets this itself. */
-.center {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-/* Signed-in pages hang from a fixed offset, about a seventh of the screen and never less than
-   step 8, instead of centring: switching sections or a polled update then never moves the column.
-   svh, not dvh, so a phone's collapsing address bar does not nudge it either. */
-.center[data-hang] {
-  padding-block-start: max(var(--ae-space-8), 14svh);
-}
-
-/* aequitas quiets only links (a[data-quiet]); actions drawn as text (Sign out, Start, the theme
-   choice) are buttons and need the same quiet state.
-   shortcut: remove once aequitas styles button.link[data-quiet] itself. */
-button.link[data-quiet] {
-  color: inherit;
-  text-decoration-color: transparent;
-
-  &:hover {
-    text-decoration-color: currentColor;
-  }
-}
-
-/* Choices (the sections, theme, access) show the current one in full ink with a solid underline
-   and let the rest recede. aequitas draws a current link in the accent and quiet ones in ink, and
-   graphite's accent is fainter than ink, so the current choice read as the inactive one. */
-:is([role='group'], nav > span) > .link {
-  &[data-quiet] {
-    color: var(--ae-text-muted);
-  }
-
-  &:is([aria-current='page'], [aria-pressed='true']) {
-    color: var(--ae-text);
-    text-decoration-color: currentColor;
-  }
-}
-
-/* The hidden skip link keeps aequitas' ambient shadow, which bleeds into the corner of every page;
-   it only needs depth while it is shown. */
-.skip-link:not(:focus-visible) {
-  box-shadow: none;
-}
-
-/* State markers before app names read as state at a glance, not as bullets. A long name wraps
-   beside its marker; the marker never shrinks. */
-.dot {
-  flex: none;
-}
+   Anything a person could type into a terminal (app ids, origins, URLs, context values, times) is
+   mono. */
 
 /* A message is shown as it was written: its line breaks kept, a long word broken rather than
    widening the column. */
@@ -82,56 +11,7 @@ button.link[data-quiet] {
   overflow-wrap: anywhere;
 }
 
-/* A breadcrumb mixes sans words with mono app ids, whose boxes differ in height; centred they sit
-   at different heights, so line them up on the text instead.
-   shortcut: remove once aequitas' .breadcrumb aligns its items on the baseline. */
-.breadcrumb {
-  align-items: baseline;
-}
-
-/* Motion. Timing comes from aequitas: --ae-duration (0.22s) and its fast step, --ae-ease (a strong
-   ease-out). Under prefers-reduced-motion aequitas sets --ae-duration to 1ms, so all of this goes
-   still there with no rule of its own. Nothing scales or bounces; things fade, and move only to
-   show where they came from. */
-:root {
-  /* For rows making room on screen; aequitas has no ease-in-out of its own. */
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-}
-
-/* Page changes: a short crossfade instead of a cut, quick because it happens all day. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: var(--ae-duration-fast);
-  animation-timing-function: var(--ae-ease);
-}
-
-/* A state change (new to seen, a marker turning green) eases over instead of snapping. */
-.dot {
-  transition: background-color var(--ae-duration) ease;
-}
+/* A state change (new to seen) eases over instead of snapping. */
 .row-title {
   transition: color var(--ae-duration) ease;
-}
-
-/* Feedback arriving live drops in from just above; the rows below make room; one that leaves the
-   view fades out of its place. The list's own container is .relative for that. */
-.row-enter-active {
-  transition:
-    opacity var(--ae-duration) var(--ae-ease),
-    transform var(--ae-duration) var(--ae-ease);
-}
-.row-enter-from {
-  opacity: 0;
-  transform: translateY(-30%);
-}
-.row-leave-active {
-  position: absolute;
-  inset-inline: 0;
-  transition: opacity var(--ae-duration-fast) var(--ae-ease);
-}
-.row-leave-to {
-  opacity: 0;
-}
-.row-move {
-  transition: transform var(--ae-duration) var(--ease-in-out);
 }

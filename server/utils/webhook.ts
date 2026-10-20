@@ -2,7 +2,7 @@
 // contract like /v1: fields are only added, never renamed or removed.
 import type { Accepted } from '../core/feedback'
 import type { Submission } from '../../shared/contracts'
-import { collatasOrigin } from './collatas'
+import { nexitasOrigin } from '#nexitas/server/utils/nexitas'
 
 /** Posts new feedback to COLLATAS_WEBHOOK_URL, if set. Never awaited: the visitor's answer
  *  does not wait on the receiver, and a failed delivery is logged, not retried. */
@@ -23,7 +23,7 @@ export function sendFeedbackWebhook(
     message: submission.message,
     context,
     page,
-    url: `${collatasOrigin()}/feedback/${id}`,
+    url: `${nexitasOrigin()}/feedback/${id}`,
   }
   fetch(url, {
     method: 'POST',

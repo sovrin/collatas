@@ -1,6 +1,6 @@
-import { submissionSchema } from '#shared/contracts'
-import { consumeAttempt } from '../../../../core/auth'
-import { secret } from '../../../../core/database'
+import { submissionSchema } from '../../../../../shared/contracts'
+import { consumeAttempt } from '../../../../core/limits'
+import { secret } from '../../../../core/secrets'
 import {
   acceptSubmission,
   addFeedback,
@@ -10,9 +10,9 @@ import {
   senderTag,
 } from '../../../../core/feedback'
 import { checkToken } from '../../../../core/token'
-import { requestSender, routeApp } from '../../../../utils/auth'
-import { collatasDatabase } from '../../../../utils/collatas'
-import { announceChange } from '../../../../utils/changes'
+import { routeApp, senderKey } from '../../../../utils/collatas'
+import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
+import { announceChange } from '#nexitas/server/utils/changes'
 import { sendFeedbackWebhook } from '../../../../utils/webhook'
 
 const PER_SENDER = 5 // per sender and app, every 10 minutes
@@ -21,7 +21,7 @@ const PER_DAY = 200 // per app, so a flood cannot fill the disk
 const DAY = 24 * 60 * 60 * 1000
 
 export default defineEventHandler(async (event) => {
-  const db = collatasDatabase()
+  const db = nexitasDatabase()
   const app = routeApp(event)
   if (!getHeader(event, 'content-type')?.startsWith('application/json'))
     throw createError({ statusCode: 415, statusMessage: 'Send application/json.' })
@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
       statusCode: 507,
       statusMessage: 'This app cannot take more feedback right now.',
     })
-  const sender = requestSender(event)
+  const sender = senderKey(event)
   const retryAfter =
     consumeAttempt(db, `send:${app.id}:${sender}`, PER_SENDER, 10 * 60 * 1000) ||
     consumeAttempt(db, `send-day:${app.id}:${sender}`, PER_SENDER_DAY, DAY)

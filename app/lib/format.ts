@@ -31,8 +31,3 @@ export function formatAge(value: number | null, now = Date.now()) {
     timeZone: 'UTC',
   }).format(value)
 }
-
-export function errorMessage(error: unknown) {
-  const response = error as { data?: { statusMessage?: string } }
-  return response?.data?.statusMessage || 'Could not reach collatas. Please try again.'
-}

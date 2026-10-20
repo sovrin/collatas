@@ -1,4 +1,4 @@
-import type { Kind, Status } from '#shared/contracts'
+import type { Kind, Status } from '../../shared/contracts'
 
 /** How each feedback state reads on screen. Only `new` needs the owner, so only it takes a tone
  *  in its word; done shows a settled green marker, seen and spam stay untoned. */

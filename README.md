@@ -1,30 +1,36 @@
 # collatas
 
-Feedback from every app, in one place. Register an app, embed its form, read what people tell you.
+Feedback from every site, in one place. Embed a form, read what people tell you.
 
-collatas is one small service: a public API that the registered sites' forms send to, a form
-component they embed, and an admin interface for the owner to read feedback and configure apps.
-It is Nuxt, SQLite through `node:sqlite` and aequitas for every pixel, behind your own reverse
-proxy.
+**collatas is a module for [nexitas](https://github.com/sovrin/nexitas), not an app of its own.** It ships inside
+nexitas, which builds it in from its `modules.json`, and an install's owner
+switches it on as Feedback. To use it, install nexitas. nexitas brings the sign-in, the page
+shell, the database and the projects (each site's name and origins); collatas adds:
+
+- a form component a project's pages embed, and the public API it sends to;
+- the inbox where the owner reads, sorts and answers feedback, across every project;
+- a Feedback panel on each project's page: start collecting, the snippet, the form's settings.
 
 ## How it fits together
 
 ```
 site (e.g. sonotas) ── GET  /v1/apps/<id>/form      → the form's rules and a form token
                      ── POST /v1/apps/<id>/feedback  → stored, if the rules allow it
-owner               ── /                             inbox, feedback, apps (signed in)
+owner               ── /feedback                     the inbox, and each feedback (signed in)
+                     ── /projects/<id>                Collect feedback, the snippet, Form settings
 ```
 
-- **Apps are configured in the admin** (Apps → Add an app): the sites (origins) that may show
-  the form, which kinds it offers (a problem, an idea, something else), which context fields the
+- **Each project collects feedback on its page** (Collect feedback, then Form settings): its
+  sites (origins), set on the project, may show the form; the app's own settings are which kinds it
+  offers (a problem, an idea, something else), which context fields the
   site may send along (e.g. `version`), whether it sends the address of the page the form is on
   (so each feedback can open it), a GitHub repository for a prefilled issue, and how long done
   and spam feedback is kept.
 - **The form component** comes from collatas itself and takes its look from the site's aequitas
-  styles. The app page shows the snippet to embed:
+  styles. The project's page shows the snippet to embed:
 
   ```html
-  <script type="module" src="https://collatas.example.com/v1/form.js"></script>
+  <script type="module" src="https://nexitas.example.com/v1/form.js"></script>
   <collatas-form app="sonotas"></collatas-form>
   <script>
     document.querySelector('collatas-form').context = { version: '0.2.0' }
@@ -43,56 +49,40 @@ owner               ── /                             inbox, feedback, apps (
 
 ## Develop
 
-Node 24+ and pnpm 11. aequitas is not published yet: check it out next to this repository and
-build it once (`cd ../aequitas && pnpm install && pnpm build`), or point `AEQUITAS_DIST` at
-another built `dist/`.
+collatas has no app, build or image of its own: it runs inside nexitas. Check out nexitas,
+aequitas and collatas next to each other, build aequitas once
+(`cd ../aequitas && pnpm install && pnpm build`), and put this checkout into nexitas' modules:
 
 ```sh
 pnpm install
-pnpm dev
+ln -s ../../collatas ../nexitas/.modules/collatas
+cd ../nexitas && pnpm modules && pnpm install && pnpm dev
 ```
 
-Open http://localhost:3000. On first run the launcher writes a random installation key to
-`.data/bootstrap-token`; use it to create the owner account. `PORT` moves the dev server.
+`pnpm modules` fetches the other modules nexitas lists and leaves the symlink to this checkout as
+it is. Open http://localhost:3000, create the owner with the key in nexitas' `.data/bootstrap-token`,
+and switch Feedback on, at setup or under Modules. The typecheck of the pages and server runs in
+nexitas (`pnpm check` there); here `pnpm check` covers the form component and the unit tests.
 
-## Run with Docker Compose
+## In an install
 
-Copy `.env.example` to `.env`, set `COLLATAS_BOOTSTRAP_TOKEN` (`openssl rand -hex 32`) and the
-public address, `COLLATAS_ORIGIN=https://collatas.example.com`. Then:
+collatas runs wherever nexitas does: see nexitas' README for Compose, the proxy and the settings.
+Off (under Modules), its inbox, API and form routes answer 404 and its cleanup stops; its feedback
+is kept.
 
-```sh
-docker compose up -d --build
-```
-
-The web service listens on `127.0.0.1:3000` (`COLLATAS_BIND`). TLS and the public address belong
-to your reverse proxy: put it, or the network it shares, in an untracked `compose.override.yaml`.
-The proxy must append the caller's address to `X-Forwarded-For`; the rate limits count senders by
-its last entry, kept only as a keyed hash. With Caddy that is the default:
-
-```
-collatas.example.com {
-	reverse_proxy 127.0.0.1:3000
-	header Strict-Transport-Security "max-age=31536000"
-}
-```
-
-Put nothing else (a CDN) in front of the proxy without changing how the sender is read. The image
-runs as an unprivileged user on Alpine with only the node binary (about 130 MB unpacked).
+The proxy in front must append the caller's address to `X-Forwarded-For`; the rate limits count
+senders by its last entry, the feedback limits kept only as a keyed hash and the sign-in limit only
+in memory.
 
 Each app also caps what it holds: by default messages of at most 1024 characters, at most 1000
 entries and 512 MB of text. A full app's form turns feedback away until some is deleted or expires,
-so a flood cannot fill the disk; the apps list marks it `full`. Each limit is set per app.
+so a flood cannot fill the disk; the project page marks it `full`. Each limit is set per app.
 
 Feedback of every status is deleted after its app's retention (180 days unless set, at most 3650),
-counted from its last change. Each feedback shows a short sender tag, the same for one sender's
-feedback to one app on one UTC day; its key is deleted the next day, after which the tag leads back
-to no one. The inbox searches messages, emails, sender tags, context and pages; a
-sender tag links to its search.
-
-Data lives in the `collatas-data` volume (`collatas.sqlite`); back it up and never
-`docker compose down -v`. Forgot the password? `pnpm owner:reset --confirm` (with
-`COLLATAS_DATA_DIR` pointing at the data) removes the owner and every session, keeps apps and
-feedback, and lets you set up again with the installation key.
+counted from its last change, by nexitas' hourly run while collatas is on. Each feedback shows a
+short sender tag, the same for one sender's feedback to one app on one UTC day; its key is deleted
+the next day, after which the tag leads back to no one. The inbox searches messages, emails, sender
+tags, context and pages; a sender tag links to its search.
 
 ## Webhook
 
@@ -109,7 +99,7 @@ are only ever added:
   "message": "…",
   "context": { "version": "1.2.0" },
   "page": "https://shop.example.com/checkout",
-  "url": "https://collatas.example.com/feedback/…"
+  "url": "https://nexitas.example.com/feedback/…"
 }
 ```
 
@@ -123,9 +113,8 @@ https://ntfy.example.com/collatas?tpl=yes&t={{.kind}}%20for%20{{.app.name}}&m={{
 ## Checks
 
 ```sh
-pnpm check         # typecheck (app, server, form component) and unit tests
+pnpm check         # the form component's typecheck and the unit tests
 pnpm lint
 pnpm format:check
-pnpm build
-node ../aequitas/dist/aequitas-check.mjs --css app/assets/app.css app/**/*.vue
+node ../aequitas/dist/aequitas-check.mjs --css app/assets/app.css --css ../nexitas/app/assets/nexitas.css app/**/*.vue
 ```

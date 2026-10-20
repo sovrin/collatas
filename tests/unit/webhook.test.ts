@@ -1,7 +1,10 @@
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { sendFeedbackWebhook } from '../../server/utils/webhook'
+
+// The app's name comes from Nuxt's runtime config, which a unit test has no Nuxt to give.
+vi.stubGlobal('useRuntimeConfig', () => ({ public: { nexitas: { name: 'collatas' } } }))
 
 afterEach(() => {
   delete process.env.COLLATAS_WEBHOOK_URL

@@ -1,6 +1,5 @@
-import { requireOwner, routeApp } from '../../utils/auth'
+import { routeApp } from '../../utils/collatas'
 
 export default defineEventHandler((event) => {
-  requireOwner(event)
   return routeApp(event)
 })
