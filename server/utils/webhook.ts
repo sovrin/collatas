@@ -7,7 +7,7 @@ import { nexitasOrigin } from '#nexitas/server/utils/nexitas'
 /** Posts new feedback to COLLATAS_WEBHOOK_URL, if set. Never awaited: the visitor's answer
  *  does not wait on the receiver, and a failed delivery is logged, not retried. */
 export function sendFeedbackWebhook(
-  app: { id: string; name: string },
+  app: { id: string; name: string; projectId: string },
   id: string,
   submission: Submission,
   { context, page }: Accepted,
@@ -23,7 +23,7 @@ export function sendFeedbackWebhook(
     message: submission.message,
     context,
     page,
-    url: `${nexitasOrigin()}/feedback/${id}`,
+    url: `${nexitasOrigin()}/p/${app.projectId}/feedback/${id}`,
   }
   fetch(url, {
     method: 'POST',

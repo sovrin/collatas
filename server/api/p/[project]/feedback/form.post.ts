@@ -1,12 +1,12 @@
-import { appSettingsSchema } from '../../../shared/contracts'
-import { getApp, updateApp } from '../../core/apps'
-import { routeApp } from '../../utils/collatas'
+import { appSettingsSchema } from '../../../../../shared/contracts'
+import { getApp, updateApp } from '../../../../core/apps'
+import { projectApp } from '../../../../utils/collatas'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { announceChange } from '#nexitas/server/utils/changes'
 import { invalid } from '#nexitas/server/utils/invalid'
 
 export default defineEventHandler(async (event) => {
-  const app = routeApp(event)
+  const app = projectApp(event)
   const body = appSettingsSchema.safeParse(await readBody(event))
   if (!body.success) throw invalid(body.error)
   const db = nexitasDatabase()

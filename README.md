@@ -8,7 +8,7 @@ switches it on as Feedback. To use it, install nexitas. nexitas brings the sign-
 shell, the database and the projects (each site's name and origins); collatas adds:
 
 - a form component a project's pages embed, and the public API it sends to;
-- the inbox where the owner reads, sorts and answers feedback, across every project;
+- an inbox per project where the owner reads, sorts and answers its feedback;
 - a Feedback panel on each project's page: start collecting, the snippet, the form's settings.
 
 ## How it fits together
@@ -16,8 +16,9 @@ shell, the database and the projects (each site's name and origins); collatas ad
 ```
 site (e.g. sonotas) ── GET  /v1/apps/<id>/form      → the form's rules and a form token
                      ── POST /v1/apps/<id>/feedback  → stored, if the rules allow it
-owner               ── /feedback                     the inbox, and each feedback (signed in)
-                     ── /projects/<id>                Collect feedback, the snippet, Form settings
+owner               ── /p/<project>/feedback         its inbox, each feedback, its form (signed in)
+                     ── /p/<project>                  Collect feedback, the snippet, Form settings
+                     ── /api/p/<project>/feedback     what those pages read and write
 ```
 
 - **Each project collects feedback on its page** (Collect feedback, then Form settings): its
@@ -99,7 +100,7 @@ are only ever added:
   "message": "…",
   "context": { "version": "1.2.0" },
   "page": "https://shop.example.com/checkout",
-  "url": "https://nexitas.example.com/feedback/…"
+  "url": "https://nexitas.example.com/p/shop/feedback/…"
 }
 ```
 

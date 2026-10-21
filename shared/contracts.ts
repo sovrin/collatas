@@ -76,9 +76,6 @@ export const APP_DEFAULTS: AppSettings = {
   enabled: true,
 }
 
-/** Starts collecting feedback for a project: its app takes the project's id and the defaults. */
-export const newAppSchema = z.object({ projectId: z.string().max(64) }).strict()
-
 /** An app with its project's name and sites. Its id is the one the embedded form names: the
  *  project's, unless it was registered before projects. */
 export interface AppConfig extends AppSettings {
@@ -125,7 +122,6 @@ export interface FormRules {
 export interface FeedbackItem {
   id: string
   appId: string
-  appName: string
   kind: Kind
   message: string
   email: string | null
@@ -136,15 +132,6 @@ export interface FeedbackItem {
   status: Status
   createdAt: number
   updatedAt: number
-}
-
-/** One app in the inbox overview: its counts and newest entries for the current filter. */
-export interface InboxGroup {
-  appId: string
-  appName: string
-  newCount: number
-  total: number
-  items: FeedbackItem[]
 }
 
 /** A page of feedback, newest first. */

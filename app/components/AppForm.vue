@@ -46,7 +46,10 @@ async function save() {
     enabled: enabled.value,
   }
   try {
-    const saved = await $fetch<AppConfig>(`/api/apps/${props.app.id}`, { method: 'POST', body })
+    const saved = await $fetch<AppConfig>(`/api/p/${props.app.projectId}/feedback/form`, {
+      method: 'POST',
+      body,
+    })
     emit('saved', saved)
   } catch (cause) {
     const data = (cause as { data?: { data?: { issues?: typeof issues.value } } }).data?.data
@@ -64,21 +67,23 @@ async function save() {
 <template>
   <form class="stack gap-5" @submit.prevent="save">
     <fieldset :disabled="pending" class="stack gap-5">
-      <!-- What every app needs, as one short list; the rest is behind More settings. -->
-      <dl class="properties">
-        <dt>Offers</dt>
-        <dd class="field">
-          <div class="cluster gap-4" role="group" aria-label="Kinds of feedback">
-            <label v-for="kind in KINDS" :key="kind">
-              <input v-model="kinds" type="checkbox" :value="kind" />
-              {{ KIND_LABELS[kind] }}
-            </label>
-          </div>
-          <span v-if="fieldError('kinds')" data-error class="text-danger">{{
-            fieldError('kinds')
-          }}</span>
-        </dd>
-      </dl>
+      <!-- What every app needs comes first; the rest is behind More settings. -->
+      <div class="field">
+        <label id="kinds-label">Offers</label>
+        <!-- aria-invalid on the group is what reveals the error of a server-side check. -->
+        <div
+          class="cluster gap-4"
+          role="group"
+          aria-labelledby="kinds-label"
+          :aria-invalid="!!fieldError('kinds') || undefined"
+        >
+          <label v-for="kind in KINDS" :key="kind">
+            <input v-model="kinds" type="checkbox" :value="kind" />
+            {{ KIND_LABELS[kind] }}
+          </label>
+        </div>
+        <span v-if="fieldError('kinds')" data-error>{{ fieldError('kinds') }}</span>
+      </div>
 
       <p class="text-s">
         <button

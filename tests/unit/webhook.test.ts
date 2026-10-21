@@ -25,7 +25,7 @@ it('posts new feedback without the email, and sends nothing when unset', async (
       process.env.COLLATAS_WEBHOOK_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}/hook`
       process.env.COLLATAS_ORIGIN = 'https://collatas.example.com'
       sendFeedbackWebhook(
-        { id: 'shop', name: 'Shop' },
+        { id: 'shop', name: 'Shop', projectId: 'shop' },
         'f1',
         { kind: 'bug', message: 'Broken', email: 'a@example.com', token: 't' },
         { context: { version: '1' }, page: null },
@@ -42,13 +42,13 @@ it('posts new feedback without the email, and sends nothing when unset', async (
       message: 'Broken',
       context: { version: '1' },
       page: null,
-      url: 'https://collatas.example.com/feedback/f1',
+      url: 'https://collatas.example.com/p/shop/feedback/f1',
     },
   })
   delete process.env.COLLATAS_WEBHOOK_URL
   expect(() =>
     sendFeedbackWebhook(
-      { id: 'shop', name: 'Shop' },
+      { id: 'shop', name: 'Shop', projectId: 'shop' },
       'f2',
       { kind: 'bug', message: 'x', token: 't' },
       { context: {}, page: null },

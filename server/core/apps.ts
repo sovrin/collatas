@@ -42,29 +42,27 @@ function toConfig(row: AppRow): AppConfig {
   }
 }
 
-export function listApps(db: DatabaseSync): AppSummary[] {
-  const rows = db
+/** The project's app with its counts, if it collects feedback. */
+export function getProjectAppSummary(db: DatabaseSync, projectId: string): AppSummary | null {
+  const row = db
     .prepare(
       `SELECT app.*,
         (SELECT count(*) FROM feedback WHERE app_id = app.id AND status = 'new') AS new_count,
         (SELECT count(*) FROM feedback WHERE app_id = app.id) AS total_count,
         (SELECT ${STORED_BYTES} FROM feedback WHERE app_id = app.id) AS stored_bytes
-      FROM (${APPS}) AS app ORDER BY name COLLATE NOCASE`,
+      FROM (${APPS} WHERE apps.project_id = ?) AS app`,
     )
-    .all() as unknown as (AppRow & {
-    new_count: number
-    total_count: number
-    stored_bytes: number
-  })[]
-  return rows.map((row) => {
-    const app = toConfig(row)
-    return {
-      ...app,
-      newCount: row.new_count,
-      totalCount: row.total_count,
-      full: isFull(app, { count: row.total_count, bytes: row.stored_bytes }),
-    }
-  })
+    .get(projectId) as
+    | (AppRow & { new_count: number; total_count: number; stored_bytes: number })
+    | undefined
+  if (!row) return null
+  const app = toConfig(row)
+  return {
+    ...app,
+    newCount: row.new_count,
+    totalCount: row.total_count,
+    full: isFull(app, { count: row.total_count, bytes: row.stored_bytes }),
+  }
 }
 
 export function getApp(db: DatabaseSync, id: string): AppConfig | null {

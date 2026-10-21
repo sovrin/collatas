@@ -39,7 +39,7 @@ export const collatas: NexitasModule = {
   // kB, within the core's default limit.
   publicRoutes: [{ path: /^\/v1\/apps\/([a-z0-9-]+)\/(form|feedback)$/, json: true, guard: cors }],
   // Everything collatas serves; switched off, all of it answers 404.
-  paths: ['/feedback', '/apps', '/api/apps', '/api/feedback', '/api/inbox', '/v1/apps'],
+  paths: ['/feedback', '/api/feedback', '/v1/apps'],
   // Feedback leaves after its app's retention, rate limits once their window ends, and sender
   // keys after their day.
   hourly: (db) => {
@@ -50,20 +50,11 @@ export const collatas: NexitasModule = {
     console.info(`collatas: deleted ${removed} entries past retention`)
     announceChange()
   },
-  // The inbox's heartbeat: is anything waiting to be read?
-  status: (db) => {
-    const fresh = countNew(db)
-    return [
-      fresh
-        ? { text: `${fresh} new`, to: '/feedback', tone: 'warning' }
-        : { text: 'nothing new', to: '/feedback' },
-    ]
-  },
   projectStatus: (db, projectId) => {
     const app = getProjectApp(db, projectId)
     if (!app) return []
     const fresh = countNew(db, app.id)
-    const to = `/feedback?app=${app.id}`
+    const to = `/p/${projectId}/feedback`
     return [
       fresh
         ? { text: `${fresh} new feedback`, to, tone: 'warning' }

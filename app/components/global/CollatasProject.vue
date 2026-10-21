@@ -6,12 +6,12 @@ import { embedSnippet } from '../../lib/embed'
 
 /** collatas' part of a project's page: its feedback form, or a way to start one. */
 const props = defineProps<{ project: ProjectSummary }>()
-const { data, error, refresh } = await useFetch<AppSummary[]>('/api/apps', {
-  query: { project: props.project.id },
+const api = `/api/p/${props.project.id}/feedback/form`
+const { data, error, refresh } = await useFetch<{ app: AppSummary | null }>(api, {
   key: `collatas-project-${props.project.id}`,
 })
 useLive(refresh)
-const app = computed(() => data.value?.[0])
+const app = computed(() => data.value?.app)
 const origin = useRequestURL().origin
 
 const pending = ref(false)
@@ -20,7 +20,7 @@ async function start() {
   pending.value = true
   startError.value = ''
   try {
-    await $fetch('/api/apps', { method: 'POST', body: { projectId: props.project.id } })
+    await $fetch(`${api}/create`, { method: 'POST', body: {} })
     await refresh()
   } catch (cause) {
     startError.value = errorMessage(cause)
@@ -41,14 +41,14 @@ async function start() {
         <!-- Colour only where the owner is needed: unread feedback, and a form so full that it
              turns feedback away. -->
         <NuxtLink
-          :to="`/feedback?app=${app.id}`"
+          :to="`/p/${project.id}/feedback`"
           class="link"
           :class="app.newCount ? 'text-warning' : undefined"
           >{{ app.newCount ? `${app.newCount} new` : 'Inbox' }}</NuxtLink
         >
         <span v-if="app.full" class="text-warning">full</span>
         <span v-else-if="!app.enabled" class="text-muted">paused</span>
-        <NuxtLink :to="`/apps/${app.id}`" class="link">Form settings</NuxtLink>
+        <NuxtLink :to="`/p/${project.id}/feedback/form`" class="link">Form settings</NuxtLink>
       </p>
       <EmbedCode :code="embedSnippet(app, origin)" />
     </template>

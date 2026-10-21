@@ -4,7 +4,6 @@ import type {
   AppConfig,
   FeedbackItem,
   FeedbackPage,
-  InboxGroup,
   Kind,
   Status,
   Submission,
@@ -18,7 +17,6 @@ const MAX_LINKS = 3
 interface FeedbackRow {
   id: string
   app_id: string
-  app_name: string
   kind: Kind
   message: string
   email: string | null
@@ -34,7 +32,6 @@ function toItem(row: FeedbackRow): FeedbackItem {
   return {
     id: row.id,
     appId: row.app_id,
-    appName: row.app_name,
     kind: row.kind,
     message: row.message,
     email: row.email,
@@ -166,17 +163,13 @@ const SEARCHED = ['message', 'email', 'sender', 'context', 'page'].map(
   (column) => `feedback.${column} LIKE ? ESCAPE '\\'`,
 )
 
-/** The SQL condition for a filter, optionally for one app and a search: every word must appear in
- *  one of the searched columns, as part of a word too (a tag's start finds the tag). */
+/** The SQL condition for one app's feedback, a filter and a search: every word must appear in one
+ *  of the searched columns, as part of a word too (a tag's start finds the tag). */
 // shortcut: LIKE scans every row, fine while retention keeps the table small (milliseconds at the
 // daily caps); move to an FTS5 index if searches ever get slow. Case folds for ASCII only.
-function matching(filter: InboxFilter, app?: string, search = '') {
-  const where: string[] = []
-  const params: string[] = []
-  if (app) {
-    where.push('feedback.app_id = ?')
-    params.push(app)
-  }
+function matching(filter: InboxFilter, app: string, search = '') {
+  const where = ['feedback.app_id = ?']
+  const params = [app]
   for (const word of search.split(/\s+/).filter(Boolean)) {
     where.push(`(${SEARCHED.join(' OR ')})`)
     params.push(...SEARCHED.map(() => `%${word.replace(/[\\%_]/g, '\\$&')}%`))
@@ -186,53 +179,7 @@ function matching(filter: InboxFilter, app?: string, search = '') {
     where.push('feedback.status = ?')
     params.push(filter)
   }
-  return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params }
-}
-
-/** The overview across apps: per app with matching feedback, its counts and newest `perApp`
- *  entries. Apps with unread feedback come first, then the one heard from most recently. The
- *  database does the grouping, so the overview stays this size however much feedback there is. */
-export function inboxOverview(
-  db: DatabaseSync,
-  filter: InboxFilter,
-  perApp: number,
-  search = '',
-): InboxGroup[] {
-  const { where, params } = matching(filter, undefined, search)
-  const rows = db
-    .prepare(
-      `WITH matching AS (
-        SELECT feedback.*, projects.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
-          JOIN projects ON projects.id = apps.project_id
-        ${where}
-      ), ranked AS (
-        SELECT *, row_number() OVER (PARTITION BY app_id ORDER BY created_at DESC, id) AS rank
-        FROM matching
-      ), stats AS (
-        SELECT app_id, count(*) AS total, sum(status = 'new') AS new_count, max(created_at) AS newest
-        FROM matching GROUP BY app_id
-      )
-      SELECT ranked.*, stats.total, stats.new_count FROM ranked JOIN stats USING (app_id)
-      WHERE rank <= ?
-      ORDER BY stats.new_count > 0 DESC, stats.newest DESC, ranked.app_id, ranked.rank`,
-    )
-    .all(...params, perApp) as unknown as (FeedbackRow & { total: number; new_count: number })[]
-  const groups: InboxGroup[] = []
-  for (const row of rows) {
-    let group = groups.at(-1)
-    if (group?.appId !== row.app_id) {
-      group = {
-        appId: row.app_id,
-        appName: row.app_name,
-        newCount: row.new_count,
-        total: row.total,
-        items: [],
-      }
-      groups.push(group)
-    }
-    group.items.push(toItem(row))
-  }
-  return groups
+  return { where: `WHERE ${where.join(' AND ')}`, params }
 }
 
 /** One page of matching feedback, newest first, with how many match in all. */
@@ -244,7 +191,7 @@ export function feedbackPage(
     page,
     pageSize,
     search,
-  }: { app?: string; filter: InboxFilter; page: number; pageSize: number; search?: string },
+  }: { app: string; filter: InboxFilter; page: number; pageSize: number; search?: string },
 ): FeedbackPage {
   const { where, params } = matching(filter, app, search)
   const { total, new_count } = db
@@ -255,22 +202,21 @@ export function feedbackPage(
     .get(...params) as { total: number; new_count: number }
   const rows = db
     .prepare(
-      `SELECT feedback.*, projects.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
-          JOIN projects ON projects.id = apps.project_id
-      ${where} ORDER BY feedback.created_at DESC, feedback.id LIMIT ? OFFSET ?`,
+      `SELECT feedback.* FROM feedback ${where}
+      ORDER BY feedback.created_at DESC, feedback.id LIMIT ? OFFSET ?`,
     )
     .all(...params, pageSize, (page - 1) * pageSize) as unknown as FeedbackRow[]
   return { items: rows.map(toItem), total, newCount: new_count, page, pageSize }
 }
 
-export function getFeedback(db: DatabaseSync, id: string): FeedbackItem | null {
+/** One of the project's feedback: another project's is not found. */
+export function getFeedback(db: DatabaseSync, projectId: string, id: string): FeedbackItem | null {
   const row = db
     .prepare(
-      `SELECT feedback.*, projects.name AS app_name FROM feedback JOIN apps ON apps.id = feedback.app_id
-          JOIN projects ON projects.id = apps.project_id
-      WHERE feedback.id = ?`,
+      `SELECT feedback.* FROM feedback JOIN apps ON apps.id = feedback.app_id
+      WHERE feedback.id = ? AND apps.project_id = ?`,
     )
-    .get(id) as FeedbackRow | undefined
+    .get(id, projectId) as FeedbackRow | undefined
   return row ? toItem(row) : null
 }
 
@@ -286,25 +232,34 @@ export function sameSenderCount(db: DatabaseSync, item: FeedbackItem) {
   return row.count
 }
 
-export function setStatus(db: DatabaseSync, id: string, status: Status, now = Date.now()) {
+// The project's feedback only, as getFeedback.
+const OF_PROJECT = 'id = ? AND app_id IN (SELECT id FROM apps WHERE project_id = ?)'
+
+export function setStatus(
+  db: DatabaseSync,
+  projectId: string,
+  id: string,
+  status: Status,
+  now = Date.now(),
+) {
   return (
-    db.prepare('UPDATE feedback SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id)
-      .changes === 1
+    db
+      .prepare(`UPDATE feedback SET status = ?, updated_at = ? WHERE ${OF_PROJECT}`)
+      .run(status, now, id, projectId).changes === 1
   )
 }
 
-export function deleteFeedback(db: DatabaseSync, id: string) {
-  return db.prepare('DELETE FROM feedback WHERE id = ?').run(id).changes === 1
+export function deleteFeedback(db: DatabaseSync, projectId: string, id: string) {
+  return db.prepare(`DELETE FROM feedback WHERE ${OF_PROJECT}`).run(id, projectId).changes === 1
 }
 
-/** Unread feedback, across apps or for one. */
-export function countNew(db: DatabaseSync, appId?: string) {
-  const row = appId
-    ? db
-        .prepare("SELECT count(*) AS count FROM feedback WHERE status = 'new' AND app_id = ?")
-        .get(appId)
-    : db.prepare("SELECT count(*) AS count FROM feedback WHERE status = 'new'").get()
-  return (row as { count: number }).count
+/** An app's unread feedback. */
+export function countNew(db: DatabaseSync, appId: string) {
+  return (
+    db
+      .prepare("SELECT count(*) AS count FROM feedback WHERE status = 'new' AND app_id = ?")
+      .get(appId) as { count: number }
+  ).count
 }
 
 /** Deletes feedback of any status once its app's retention has passed since its last change:

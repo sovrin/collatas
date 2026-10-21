@@ -6,7 +6,7 @@ export default defineAppConfig({
       {
         id: 'collatas',
         label: 'Feedback',
-        description: 'A feedback form for your sites, and one inbox for all of it.',
+        description: 'A feedback form for your sites, and an inbox for what it collects.',
         icon: 'chat-dots',
         panel: 'CollatasProject',
       },

@@ -4,7 +4,13 @@ import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { appSettingsSchema, type AppConfig, type Submission } from '../../shared/contracts'
-import { createApp as addApp, deleteApp, getApp, listApps, updateApp } from '../../server/core/apps'
+import {
+  createApp as addApp,
+  deleteApp,
+  getApp,
+  getProjectAppSummary,
+  updateApp,
+} from '../../server/core/apps'
 import { openDatabase } from '#nexitas/server/core/database'
 import { createProject } from '#nexitas/server/core/projects'
 import {
@@ -12,10 +18,10 @@ import {
   addFeedback,
   appUsage,
   countLastDay,
+  deleteFeedback,
   getFeedback,
   issueLink,
   feedbackPage,
-  inboxOverview,
   isFull,
   type InboxFilter,
   pruneFeedback,
@@ -31,7 +37,7 @@ import { checkToken, issueToken } from '../../server/core/token'
 
 const DAY = 24 * 60 * 60 * 1000
 const NOTHING = { context: {}, page: null }
-const list = (db: DatabaseSync, filter: InboxFilter, app?: string) =>
+const list = (db: DatabaseSync, filter: InboxFilter, app = 'sonotas') =>
   feedbackPage(db, { app, filter, page: 1, pageSize: 100 }).items
 const dirs: string[] = []
 const dbs: DatabaseSync[] = []
@@ -124,7 +130,11 @@ describe('app settings', () => {
     expect(createApp(db, sonotas)).toBe(false)
     expect(getApp(db, 'sonotas')).toEqual(sonotas)
     addFeedback(db, 'sonotas', submission(), NOTHING)
-    expect(listApps(db)[0]).toMatchObject({ id: 'sonotas', newCount: 1, totalCount: 1 })
+    expect(getProjectAppSummary(db, 'sonotas')).toMatchObject({
+      id: 'sonotas',
+      newCount: 1,
+      totalCount: 1,
+    })
     updateApp(db, 'sonotas', { ...settings(sonotas), enabled: false })
     expect(getApp(db, 'sonotas')?.enabled).toBe(false)
     expect(deleteApp(db, 'sonotas')).toBe(true)
@@ -139,11 +149,11 @@ describe('projects', () => {
     expect(collatas.projectStatus!(db, 'bare')).toEqual([])
     createApp(db, sonotas)
     expect(collatas.projectStatus!(db, 'sonotas')).toEqual([
-      { text: 'no new feedback', to: '/feedback?app=sonotas' },
+      { text: 'no new feedback', to: '/p/sonotas/feedback' },
     ])
     addFeedback(db, 'sonotas', submission(), NOTHING)
     expect(collatas.projectStatus!(db, 'sonotas')).toEqual([
-      { text: '1 new feedback', to: '/feedback?app=sonotas', tone: 'warning' },
+      { text: '1 new feedback', to: '/p/sonotas/feedback', tone: 'warning' },
     ])
     expect(addApp(db, { ...sonotas, id: 'second' })).toBe(false)
     collatas.deleteProject!(db, 'sonotas')
@@ -186,9 +196,9 @@ describe('submissions', () => {
     })
     // 3 bytes of message, 15 of context JSON, 28 of page
     expect(appUsage(db, 'sonotas')).toEqual({ count: 1, bytes: 46 })
-    expect(listApps(db)[0]?.full).toBe(false)
+    expect(getProjectAppSummary(db, 'sonotas')?.full).toBe(false)
     addFeedback(db, 'sonotas', submission(), NOTHING)
-    expect(listApps(db)[0]?.full).toBe(true)
+    expect(getProjectAppSummary(db, 'sonotas')?.full).toBe(true)
     expect(isFull({ maxFeedback: 10, maxStorageMb: 1 }, { count: 1, bytes: 1024 * 1024 })).toBe(
       true,
     )
@@ -205,40 +215,25 @@ describe('submissions', () => {
     addFeedback(db, 'sonotas', submission(), NOTHING, now - 2 * DAY)
     expect(countLastDay(db, 'sonotas', now)).toBe(1)
     expect(list(db, 'open')).toHaveLength(2)
-    setStatus(db, id, 'done')
+    setStatus(db, 'sonotas', id, 'done')
     expect(list(db, 'open')).toHaveLength(1)
     expect(list(db, 'done', 'sonotas')[0]?.id).toBe(id)
-    expect(getFeedback(db, id)?.appName).toBe('sonotas')
+  })
+
+  it('are found, changed and deleted by their own project only', () => {
+    const db = database()
+    createApp(db, sonotas)
+    createApp(db, { ...sonotas, id: 'other' })
+    const id = addFeedback(db, 'sonotas', submission(), NOTHING)
+    expect(getFeedback(db, 'other', id)).toBeNull()
+    expect(setStatus(db, 'other', id, 'done')).toBe(false)
+    expect(deleteFeedback(db, 'other', id)).toBe(false)
+    expect(getFeedback(db, 'sonotas', id)?.status).toBe('new')
+    expect(deleteFeedback(db, 'sonotas', id)).toBe(true)
   })
 })
 
 describe('inbox', () => {
-  it('groups by app, unread first, newest few each, with counts', () => {
-    const db = database()
-    createApp(db, sonotas)
-    createApp(db, { ...sonotas, id: 'quiet' })
-    createApp(db, { ...sonotas, id: 'empty' })
-    const now = 10 * DAY
-    for (let i = 0; i < 7; i++) {
-      const id = addFeedback(
-        db,
-        'sonotas',
-        submission({ message: `s${i}` }),
-        NOTHING,
-        now - i * 1000,
-      )
-      if (i > 0) setStatus(db, id, 'seen')
-    }
-    // quiet was heard from last, but has nothing unread
-    const latest = addFeedback(db, 'quiet', submission({ message: 'q' }), NOTHING, now + 1000)
-    setStatus(db, latest, 'seen')
-    const groups = inboxOverview(db, 'open', 5)
-    expect(groups.map((group) => group.appId)).toEqual(['sonotas', 'quiet'])
-    expect(groups[0]).toMatchObject({ newCount: 1, total: 7 })
-    expect(groups[0]!.items.map((item) => item.message)).toEqual(['s0', 's1', 's2', 's3', 's4'])
-    expect(inboxOverview(db, 'done', 5)).toEqual([])
-  })
-
   it('pages one app, newest first, with the total', () => {
     const db = database()
     createApp(db, sonotas)
@@ -247,7 +242,9 @@ describe('inbox', () => {
     const second = feedbackPage(db, { app: 'sonotas', filter: 'all', page: 2, pageSize: 3 })
     expect(second.items.map((item) => item.message)).toEqual(['m3', 'm2', 'm1'])
     expect(second).toMatchObject({ total: 7, newCount: 7, page: 2 })
-    expect(feedbackPage(db, { filter: 'all', page: 4, pageSize: 3 }).items).toEqual([])
+    expect(feedbackPage(db, { app: 'sonotas', filter: 'all', page: 4, pageSize: 3 }).items).toEqual(
+      [],
+    )
   })
 })
 
@@ -265,7 +262,7 @@ describe('search', () => {
     const stall = add('sonotas', { message: 'Export stalls at 80%' }, '6a57ef8e')
     const dialog = add('sonotas', { message: 'Dialog hides the panel', email: 'pat@example.com' })
     add('other', { message: 'Export works fine' })
-    const find = (search: string, app?: string) =>
+    const find = (search: string, app = 'sonotas') =>
       feedbackPage(db, { app, filter: 'all', page: 1, pageSize: 100, search }).items.map(
         (item) => item.id,
       )
@@ -275,8 +272,7 @@ describe('search', () => {
     expect(find('0.2.0', 'sonotas')).toHaveLength(2)
     expect(find('80%')).toEqual([stall])
     expect(find('8_%')).toEqual([])
-    expect(find('export')).toHaveLength(2)
-    expect(inboxOverview(db, 'all', 5, 'export').map((group) => group.total)).toEqual([1, 1])
+    expect(find('export', 'other')).toHaveLength(1)
   })
 })
 
@@ -287,15 +283,16 @@ describe('retention', () => {
     createApp(db, { ...sonotas, id: 'longer', retentionDays: 60 })
     const old = 100 * DAY
     const done = addFeedback(db, 'sonotas', submission(), NOTHING, old)
-    setStatus(db, done, 'done', old)
+    setStatus(db, 'sonotas', done, 'done', old)
     const unread = addFeedback(db, 'sonotas', submission(), NOTHING, old)
     const touched = addFeedback(db, 'sonotas', submission(), NOTHING, old)
-    setStatus(db, touched, 'seen', old + 10 * DAY)
+    setStatus(db, 'sonotas', touched, 'seen', old + 10 * DAY)
     addFeedback(db, 'longer', submission(), NOTHING, old)
     expect(pruneFeedback(db, old + 31 * DAY)).toBe(2)
-    expect(getFeedback(db, done)).toBeNull()
-    expect(getFeedback(db, unread)).toBeNull()
-    expect(list(db, 'all')).toHaveLength(2)
+    expect(getFeedback(db, 'sonotas', done)).toBeNull()
+    expect(getFeedback(db, 'sonotas', unread)).toBeNull()
+    expect(list(db, 'all')).toHaveLength(1)
+    expect(list(db, 'all', 'longer')).toHaveLength(1)
   })
 
   it('refuses keeping forever', () => {
@@ -325,14 +322,14 @@ describe('links', () => {
       context: {},
       page: 'https://sonotas.example.com/',
     })
-    expect(getFeedback(db, id)?.page).toBe('https://sonotas.example.com/')
+    expect(getFeedback(db, 'sonotas', id)?.page).toBe('https://sonotas.example.com/')
   })
 
   it('prefill a GitHub issue without the sender email', () => {
     const link = issueLink(sonotas, {
       id: '1',
       appId: 'sonotas',
-      appName: 'sonotas',
+      projectId: 'sonotas',
       kind: 'problem',
       message: 'Export stalls\nat 80%',
       email: 'someone@example.com',
@@ -363,12 +360,12 @@ describe('sender tags', () => {
     expect(senderTag(db, 'other', 'a', morning)).not.toBe(tag)
     expect(senderTag(db, 'sonotas', 'a', morning + DAY)).not.toBe(tag)
     const id = addFeedback(db, 'sonotas', submission(), { ...NOTHING, sender: tag })
-    expect(getFeedback(db, id)?.sender).toBe(tag)
-    expect(sameSenderCount(db, getFeedback(db, id)!)).toBe(0)
+    expect(getFeedback(db, 'sonotas', id)?.sender).toBe(tag)
+    expect(sameSenderCount(db, getFeedback(db, 'sonotas', id)!)).toBe(0)
     const other = addFeedback(db, 'sonotas', submission(), { ...NOTHING, sender: tag })
-    expect(sameSenderCount(db, getFeedback(db, id)!)).toBe(1)
+    expect(sameSenderCount(db, getFeedback(db, 'sonotas', id)!)).toBe(1)
     db.prepare('DELETE FROM feedback WHERE id = ?').run(other)
-    expect(sameSenderCount(db, getFeedback(db, id)!)).toBe(0)
+    expect(sameSenderCount(db, getFeedback(db, 'sonotas', id)!)).toBe(0)
     pruneSenderKeys(db, morning + DAY)
     expect(senderTag(db, 'sonotas', 'a', morning)).not.toBe(tag)
   })

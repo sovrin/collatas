@@ -12,8 +12,11 @@ Conventions for working on collatas, in code and in the interface.
   collatas needs, here.
 - Import by relative path: `~` and `#shared` resolve against nexitas, the app. The core is
   `#nexitas/...`. Nothing app-wide here (name, logo, favicon, sign-in lines): those are nexitas'.
-- Its pages live under its own paths (`/feedback`, `/apps/<id>`); `/` and `/projects` are
-  nexitas'.
+- Its pages are a project's, under `/p/<project>/feedback`, and read it with `useProject()`;
+  `/`, `/projects` and the project's own page are nexitas'. Its owner API is the project's too,
+  under `/api/p/<project>/feedback` (the form's settings at `…/feedback/form`), and takes it from
+  `requestProject(event)`. A project's app is found from the project, never named in a URL, and
+  the core functions that read or change one feedback take the project and find no other's.
 - Keep comprehension debt low: explicit control flow, small modules, framework conventions, no
   speculative abstractions. Comments say why, not what.
 - Every rule about input lives once, in `shared/contracts.ts` (zod), and is checked at runtime on
