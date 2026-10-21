@@ -17,7 +17,7 @@ if (data.value && !app.value)
 // Its id, which the embedded form names and the owner types to delete it, is the project's unless
 // it predates projects.
 const id = computed(() => app.value?.id ?? project)
-useHead({ title: `Feedback form · ${project} · ${useRuntimeConfig().public.nexitas.name}` })
+useHead({ title: `Feedback form · ${project}` })
 
 const savedNotice = ref(false)
 async function saved() {
@@ -29,7 +29,6 @@ const origin = useRequestURL().origin
 const embed = computed(() => (app.value ? embedSnippet(app.value, origin) : ''))
 
 const deleteOpen = ref(false)
-const typed = ref('')
 const deleteError = ref('')
 async function remove() {
   deleteError.value = ''
@@ -46,22 +45,17 @@ async function remove() {
   <div class="stack gap-5">
     <nav aria-label="Breadcrumb">
       <ol class="breadcrumb">
-        <li><NuxtLink to="/">Projects</NuxtLink></li>
-        <li>
-          <NuxtLink :to="`/p/${project}`" class="font-mono">{{ project }}</NuxtLink>
-        </li>
+        <li><NuxtLink :to="`/p/${project}/feedback`">Inbox</NuxtLink></li>
         <li aria-current="page">Feedback form</li>
       </ol>
     </nav>
 
     <div v-if="error" class="alert" data-tone="danger" role="alert">
-      <div><strong>Could not load this app.</strong> {{ errorMessage(error) }}</div>
+      <div><strong>Could not load the feedback form.</strong> {{ errorMessage(error) }}</div>
     </div>
     <template v-else-if="app">
       <div class="page-header">
-        <div class="stack gap-1 min-w-0">
-          <h1 class="text-xl weight-600">{{ app.name }}</h1>
-        </div>
+        <h1 class="text-xl weight-600">{{ app.name }}</h1>
         <div class="cluster gap-2">
           <NuxtLink :to="`/p/${project}/feedback`" class="btn" data-size="s">Inbox</NuxtLink>
           <button
@@ -77,7 +71,7 @@ async function remove() {
         </div>
       </div>
       <div v-if="deleteError" class="alert" data-tone="danger" role="alert">
-        <div><strong>Could not delete the app.</strong> {{ deleteError }}</div>
+        <div><strong>Could not delete the feedback form.</strong> {{ deleteError }}</div>
       </div>
 
       <!-- What the form offers takes the room; the code that embeds it sits beside it. -->
@@ -106,19 +100,13 @@ async function remove() {
       :title="`Delete ${id} and its feedback?`"
       confirm-label="Delete form"
       tone="danger"
-      :disabled="typed !== id"
+      :confirm-word="id"
       @confirm="remove"
     >
       <template #description
         >Stops collecting feedback for this project and removes all of it. Embedded forms stop
         working; the project stays. This cannot be undone.</template
       >
-      <div class="field">
-        <label for="confirm-id"
-          >Type <span class="font-mono">{{ id }}</span> to confirm</label
-        >
-        <input id="confirm-id" v-model="typed" class="input font-mono text-s" autocomplete="off" />
-      </div>
     </ConfirmDialog>
   </div>
 </template>

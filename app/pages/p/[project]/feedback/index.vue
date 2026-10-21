@@ -2,8 +2,7 @@
 import type { AppSummary, FeedbackPage } from '../../../../../shared/contracts'
 import { KIND_LABELS, MAX_SEARCH } from '../../../../../shared/contracts'
 import { excerpt, feedbackStates, kindIcons } from '../../../../lib/feedback'
-import { errorMessage } from '#nexitas/app/lib/format'
-import { formatAge } from '../../../../lib/format'
+import { errorMessage, formatAge, formatCount } from '#nexitas/app/lib/format'
 
 const FILTERS = [
   { value: 'open', label: 'Open' },
@@ -20,8 +19,7 @@ const filter = computed(() =>
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
 const view = computed(() => `${filter.value}|${page.value}|${q.value}`)
-const { name } = useRuntimeConfig().public.nexitas
-useHead({ title: `Inbox · ${name}` })
+useHead({ title: `Inbox · ${project}` })
 
 const { data, error, refresh } = await useFetch<FeedbackPage>(`/api/p/${project}/feedback`, {
   query: { filter, page, q },
@@ -55,7 +53,7 @@ const search = () => navigateTo(inbox({ q: searchText.value.trim() }))
 
 /** "4 open", "2 done", "7 in total": what the view holds when nothing in it is new. */
 const countLabel = (count: number) =>
-  `${count} ${filter.value === 'all' ? 'in total' : filter.value}`
+  `${formatCount(count)} ${filter.value === 'all' ? 'in total' : filter.value}`
 
 const empty = computed(() =>
   q.value
@@ -71,9 +69,12 @@ const empty = computed(() =>
     <div class="page-header">
       <div class="stack gap-1 min-w-0">
         <h1 class="text-xl weight-600">Inbox</h1>
-        <!-- Colour only where the owner is needed: unread feedback. -->
+        <!-- A tone only where the owner is needed: unread feedback. -->
         <p v-if="data?.total" class="text-s">
-          <span v-if="data.newCount" class="text-warning">{{ data.newCount }} new</span>
+          <span v-if="data.newCount" class="cluster gap-2"
+            ><span class="dot" data-tone="warning" aria-hidden="true"></span
+            >{{ formatCount(data.newCount) }} new</span
+          >
           <span v-else class="text-muted">{{ countLabel(data.total) }}</span>
         </p>
       </div>
@@ -98,7 +99,6 @@ const empty = computed(() =>
             placeholder="Search"
             aria-label="Search feedback: words, a sender tag, an email"
             :maxlength="MAX_SEARCH"
-            style="inline-size: 12rem"
             @search="search"
           />
         </form>
@@ -116,13 +116,12 @@ const empty = computed(() =>
     </p>
     <div v-else-if="data?.items.length" class="stack gap-6">
       <div class="table-scroll">
-        <!-- Fixed widths, so the columns hold still from one page or filter to the next. -->
-        <table class="table" data-size="s" data-fixed aria-label="Feedback">
+        <table class="table" data-size="s" aria-label="Feedback">
           <thead>
             <tr>
               <th scope="col">Message</th>
-              <th scope="col" style="inline-size: 4rem">Kind</th>
-              <th scope="col" data-num style="inline-size: 7rem">Received</th>
+              <th scope="col">Kind</th>
+              <th scope="col" data-num>Received</th>
             </tr>
           </thead>
           <!-- Rows animate only while the view stays the same (live arrivals, status changes); a
@@ -172,8 +171,10 @@ const empty = computed(() =>
         <NuxtLink v-if="page > 1" :to="inbox({ page: page - 1 })" class="link">Newer</NuxtLink>
         <span v-else></span>
         <span class="text-muted tabular"
-          >{{ (page - 1) * data.pageSize + 1 }}–{{ Math.min(page * data.pageSize, data.total) }} of
-          {{ data.total }}</span
+          >{{ formatCount((page - 1) * data.pageSize + 1) }}–{{
+            formatCount(Math.min(page * data.pageSize, data.total))
+          }}
+          of {{ formatCount(data.total) }}</span
         >
         <NuxtLink v-if="page < pages" :to="inbox({ page: page + 1 })" class="link">Older</NuxtLink>
         <span v-else></span>

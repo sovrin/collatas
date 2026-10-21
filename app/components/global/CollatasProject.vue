@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectSummary } from '#nexitas/shared/contracts'
 import type { AppSummary } from '../../../shared/contracts'
-import { errorMessage } from '#nexitas/app/lib/format'
+import { errorMessage, formatCount } from '#nexitas/app/lib/format'
 import { embedSnippet } from '../../lib/embed'
 
 /** collatas' part of a project's page: its feedback form, or a way to start one. */
@@ -38,15 +38,15 @@ async function start() {
     </div>
     <template v-else-if="app">
       <p class="cluster gap-3 text-s">
-        <!-- Colour only where the owner is needed: unread feedback, and a form so full that it
+        <!-- A tone only where the owner is needed: unread feedback, and a form so full that it
              turns feedback away. -->
-        <NuxtLink
-          :to="`/p/${project.id}/feedback`"
-          class="link"
-          :class="app.newCount ? 'text-warning' : undefined"
-          >{{ app.newCount ? `${app.newCount} new` : 'Inbox' }}</NuxtLink
+        <NuxtLink :to="`/p/${project.id}/feedback`" class="link cluster gap-2"
+          ><span v-if="app.newCount" class="dot" data-tone="warning" aria-hidden="true"></span
+          >{{ app.newCount ? `${formatCount(app.newCount)} new` : 'Inbox' }}</NuxtLink
         >
-        <span v-if="app.full" class="text-warning">full</span>
+        <span v-if="app.full" class="cluster gap-2"
+          ><span class="dot" data-tone="warning" aria-hidden="true"></span>full</span
+        >
         <span v-else-if="!app.enabled" class="text-muted">paused</span>
         <NuxtLink :to="`/p/${project.id}/feedback/form`" class="link">Form settings</NuxtLink>
       </p>

@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import type { FeedbackDetail, Status } from '../../../../../shared/contracts'
 import { KIND_LABELS } from '../../../../../shared/contracts'
-import { errorMessage } from '#nexitas/app/lib/format'
-import { formatTime } from '../../../../lib/format'
+import { errorMessage, formatTime } from '#nexitas/app/lib/format'
 
 const project = useProject().id.value
 const id = useRoute().params.id as string
 const inbox = `/p/${project}/feedback`
 const api = `/api/p/${project}/feedback/${id}`
 const { data: item, error, refresh } = await useFetch<FeedbackDetail>(api)
-const { name } = useRuntimeConfig().public.nexitas
-useHead({ title: () => `${item.value ? KIND_LABELS[item.value.kind] : 'Feedback'} · ${name}` })
+useHead({ title: () => `${item.value ? KIND_LABELS[item.value.kind] : 'Feedback'} · ${project}` })
 
 const router = useRouter()
 /** The inbox view this entry was opened from (a filter, a search, a page), else the inbox. */
@@ -123,7 +121,7 @@ const NEXT: { status: Status; label: string }[] = [
 
       <!-- The message takes the room; where it came from sits beside it. -->
       <div class="with-aside">
-        <p class="message min-w-0">{{ item.message }}</p>
+        <p class="snippet min-w-0">{{ item.message }}</p>
 
         <aside class="stack gap-3" aria-labelledby="details-title">
           <h2 id="details-title" class="text-s weight-600 hairline-b pb-2">Details</h2>

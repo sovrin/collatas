@@ -6,6 +6,7 @@ import {
   addFeedback,
   appUsage,
   countLastDay,
+  DAY,
   isFull,
   senderTag,
 } from '../../../../core/feedback'
@@ -18,7 +19,6 @@ import { sendFeedbackWebhook } from '../../../../utils/webhook'
 const PER_SENDER = 5 // per sender and app, every 10 minutes
 const PER_SENDER_DAY = 20 // per sender and app, so one sender cannot use up PER_DAY
 const PER_DAY = 200 // per app, so a flood cannot fill the disk
-const DAY = 24 * 60 * 60 * 1000
 
 export default defineEventHandler(async (event) => {
   const db = nexitasDatabase()

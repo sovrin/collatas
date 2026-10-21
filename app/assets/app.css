@@ -1,15 +1,8 @@
-/* What only collatas needs on top of the nexitas shell (nexitas.css): how a message is set, and how
-   a row's title changes state. Unlayered, so it wins over aequitas' layers; tokens only.
+/* What only collatas needs on top of the nexitas shell (nexitas.css): how a row's title changes
+   state. Unlayered, so it wins over aequitas' layers; tokens only.
 
    Anything a person could type into a terminal (app ids, origins, URLs, context values, times) is
    mono. */
-
-/* A message is shown as it was written: its line breaks kept, a long word broken rather than
-   widening the column. */
-.message {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 
 /* A state change (new to seen) eases over instead of snapping. */
 .row-title {

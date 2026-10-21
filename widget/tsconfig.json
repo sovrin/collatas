@@ -7,9 +7,7 @@
     "lib": ["ES2022", "DOM"],
     "strict": true,
     "noEmit": true,
-    "skipLibCheck": true,
-    // shared/contracts builds on the core's rules; the form takes only types from it.
-    "paths": { "#nexitas/*": ["../../nexitas/*"] }
+    "skipLibCheck": true
   },
   "include": ["./*.ts"]
 }

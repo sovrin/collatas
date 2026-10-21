@@ -3,9 +3,9 @@
 // and the database itself are the core's.
 import type { H3Event } from 'h3'
 import type { NexitasModule } from '#nexitas/shared/modules'
-import { projectAllows } from '#nexitas/server/core/projects'
 import { announceChange } from '#nexitas/server/utils/changes'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
+import { projectCors } from '#nexitas/server/utils/cors'
 import { deleteApp, getApp, getProjectApp } from './apps'
 import { countNew, pruneFeedback, pruneSenderKeys } from './feedback'
 import { pruneAttempts } from './limits'
@@ -68,26 +68,12 @@ export const collatas: NexitasModule = {
   },
 }
 
-/** Answers CORS for exactly the origins registered for the app, and refuses everyone else. */
+/** The app's project's sites may call its form routes; everyone else, and a paused or unknown
+ *  app, is refused. */
 function cors(event: H3Event, match: RegExpExecArray | null) {
-  const origin = getHeader(event, 'origin')
   const app = getApp(nexitasDatabase(), match?.[1] ?? '')
-  // A browser always sends Origin on these cross-site requests; without a match there is no
-  // CORS header, so a page elsewhere cannot read the answer either.
-  if (!app?.enabled || !origin || !projectAllows(nexitasDatabase(), app.projectId, origin)) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'This site may not send feedback to this app.',
-    })
-  }
-  setHeaders(event, { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' })
-  if (event.method === 'OPTIONS') {
-    setHeaders(event, {
-      'Access-Control-Allow-Methods': 'GET, POST',
-      'Access-Control-Allow-Headers': 'content-type',
-      'Access-Control-Max-Age': '600',
-    })
-    setResponseStatus(event, 204)
-    return ''
-  }
+  return projectCors(event, app?.enabled ? app.projectId : undefined, {
+    methods: 'GET, POST',
+    refusal: 'This site may not send feedback to this app.',
+  })
 }

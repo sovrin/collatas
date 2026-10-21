@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { AppConfig, AppSettings, ContextField } from '../../shared/contracts'
 import { KIND_LABELS, KINDS, MAX_MESSAGE } from '../../shared/contracts'
-import { errorMessage } from '#nexitas/app/lib/format'
 
 /** Changes what an app's form offers. Its name and the sites that may send are its project's,
  *  set on the project's page, so nothing about an app is configured in files. */
@@ -19,11 +18,7 @@ const maxStorageMb = ref(props.app.maxStorageMb)
 const enabled = ref(props.app.enabled)
 const moreOpen = ref(false)
 
-const pending = ref(false)
-const error = ref('')
-const issues = ref<{ path: string; message: string }[]>([])
-const fieldError = (path: string) =>
-  issues.value.find((issue) => issue.path === path || issue.path.startsWith(`${path}.`))?.message
+const { pending, error, issues, fieldError, submit } = useSubmit()
 
 function addField() {
   context.value.push({ key: '', max: 200 })
@@ -31,9 +26,6 @@ function addField() {
 }
 
 async function save() {
-  pending.value = true
-  error.value = ''
-  issues.value = []
   const body: AppSettings = {
     kinds: KINDS.filter((kind) => kinds.value.includes(kind)),
     context: context.value.map((field) => ({ key: field.key.trim(), max: Number(field.max) })),
@@ -45,22 +37,12 @@ async function save() {
     maxStorageMb: Number(maxStorageMb.value),
     enabled: enabled.value,
   }
-  try {
-    const saved = await $fetch<AppConfig>(`/api/p/${props.app.projectId}/feedback/form`, {
-      method: 'POST',
-      body,
-    })
-    emit('saved', saved)
-  } catch (cause) {
-    const data = (cause as { data?: { data?: { issues?: typeof issues.value } } }).data?.data
-    if (data?.issues?.length) {
-      issues.value = data.issues
-      // A problem in a hidden setting opens them, so it can be seen.
-      if (issues.value.some((issue) => issue.path.split('.')[0] !== 'kinds')) moreOpen.value = true
-    } else error.value = errorMessage(cause)
-  } finally {
-    pending.value = false
-  }
+  const saved = await submit(() =>
+    $fetch<AppConfig>(`/api/p/${props.app.projectId}/feedback/form`, { method: 'POST', body }),
+  )
+  if (saved) emit('saved', saved)
+  // A problem in a hidden setting opens them, so it can be seen.
+  else if (issues.value.some((issue) => issue.path.split('.')[0] !== 'kinds')) moreOpen.value = true
 }
 </script>
 
@@ -124,13 +106,12 @@ async function save() {
             />
             <input
               v-model.number="field.max"
-              class="input font-mono text-s"
+              class="input font-mono text-s w-auto"
               data-size="s"
               type="number"
               min="1"
               max="2000"
               :aria-label="`Context field ${index + 1}: longest value`"
-              style="inline-size: 6rem"
             />
             <button
               type="button"
@@ -145,9 +126,7 @@ async function save() {
               <i class="icon" data-icon="x"></i>
             </button>
           </div>
-          <span v-if="fieldError('context')" class="text-s text-danger">{{
-            fieldError('context')
-          }}</span>
+          <span v-if="fieldError('context')" data-error>{{ fieldError('context') }}</span>
           <p>
             <button type="button" class="link text-s" @click="addField">Add a context field</button>
           </p>
@@ -185,12 +164,11 @@ async function save() {
             <input
               id="retention"
               v-model.number="retentionDays"
-              class="input font-mono text-s"
+              class="input font-mono text-s w-auto"
               data-size="s"
               type="number"
               min="1"
               max="3650"
-              style="inline-size: 6rem"
               aria-describedby="retention-help"
             />
             <span class="text-s text-muted">days</span>
@@ -204,12 +182,11 @@ async function save() {
             <input
               id="max-message"
               v-model.number="maxMessage"
-              class="input font-mono text-s"
+              class="input font-mono text-s w-auto"
               data-size="s"
               type="number"
               min="1"
               :max="MAX_MESSAGE"
-              style="inline-size: 6rem"
               :aria-invalid="!!fieldError('maxMessage') || undefined"
             />
             <span class="text-s text-muted">characters</span>
@@ -223,12 +200,11 @@ async function save() {
             <input
               id="max-feedback"
               v-model.number="maxFeedback"
-              class="input font-mono text-s"
+              class="input font-mono text-s w-auto"
               data-size="s"
               type="number"
               min="1"
               max="100000"
-              style="inline-size: 6rem"
               :aria-invalid="!!fieldError('maxFeedback') || undefined"
               aria-describedby="limits-help"
             />
@@ -242,12 +218,11 @@ async function save() {
             <input
               id="max-storage"
               v-model.number="maxStorageMb"
-              class="input font-mono text-s"
+              class="input font-mono text-s w-auto"
               data-size="s"
               type="number"
               min="1"
               max="10240"
-              style="inline-size: 6rem"
               :aria-invalid="!!fieldError('maxStorageMb') || undefined"
               aria-describedby="limits-help"
             />
@@ -263,20 +238,7 @@ async function save() {
       </div>
     </fieldset>
 
-    <div v-if="issues.length || error" class="alert" data-tone="danger" role="alert">
-      <div>
-        <template v-if="error"><strong>Could not save the app.</strong> {{ error }}</template>
-        <template v-else>
-          <strong>Check these settings.</strong>
-          <ul>
-            <li v-for="issue in issues" :key="issue.path">
-              <span class="font-mono">{{ issue.path }}</span
-              >: {{ issue.message }}
-            </li>
-          </ul>
-        </template>
-      </div>
-    </div>
+    <FormIssues :error="error" :issues="issues" failed="Could not save the form." />
 
     <div class="cluster gap-3 hairline-t pt-5">
       <p class="caption">

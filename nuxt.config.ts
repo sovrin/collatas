@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 const root = dirname(fileURLToPath(import.meta.url))
 
 export default defineNuxtConfig({
+  compatibilityDate: '2026-09-06',
   css: [resolve(root, 'app/assets/app.css')],
   // nexitas allows its own files and aequitas'; these are collatas' own.
   vite: { server: { fs: { allow: [root] } } },

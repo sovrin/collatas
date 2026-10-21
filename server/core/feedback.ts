@@ -10,7 +10,7 @@ import type {
 } from '../../shared/contracts'
 import { secret } from './secrets'
 
-const DAY = 24 * 60 * 60 * 1000
+export const DAY = 24 * 60 * 60 * 1000
 const MB = 1024 * 1024
 const MAX_LINKS = 3
 
