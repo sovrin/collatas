@@ -4,7 +4,7 @@ import type { Kind, Status } from '../../shared/contracts'
  *  in its word; done shows a settled green marker, seen and spam stay untoned. */
 export const feedbackStates: Record<
   Status,
-  { label: string; tone?: string; needsOwner?: boolean }
+  { label: string; tone?: 'success' | 'warning'; needsOwner?: boolean }
 > = {
   new: { label: 'new', tone: 'warning', needsOwner: true },
   seen: { label: 'seen' },

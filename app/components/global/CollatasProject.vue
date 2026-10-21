@@ -6,71 +6,48 @@ import { embedSnippet } from '../../lib/embed'
 
 /** collatas' part of a project's page: its feedback form, or a way to start one. */
 const props = defineProps<{ project: ProjectSummary }>()
-const api = `/api/p/${props.project.id}/feedback/form`
-const { data, error, refresh } = await useFetch<{ app: AppSummary | null }>(api, {
-  key: `collatas-project-${props.project.id}`,
-})
-useLive(refresh)
+const { data, error, refresh } = await useProjectFetch<{ app: AppSummary | null }>(
+  '/feedback/form',
+  { key: `collatas-project-${props.project.id}` },
+)
 const app = computed(() => data.value?.app)
 const origin = useRequestURL().origin
 
-const pending = ref(false)
-const startError = ref('')
 async function start() {
-  pending.value = true
-  startError.value = ''
-  try {
-    await $fetch(`${api}/create`, { method: 'POST', body: {} })
-    await refresh()
-  } catch (cause) {
-    startError.value = errorMessage(cause)
-  } finally {
-    pending.value = false
-  }
+  await $fetch(`/api/p/${props.project.id}/feedback/form/create`, { method: 'POST', body: {} })
+  await refresh()
 }
 </script>
 
 <template>
   <!-- Under the module's name and icon, which the project page puts above it. -->
   <div class="stack gap-3">
-    <div v-if="error" class="alert" data-tone="danger" role="alert">
-      <div><strong>Could not load its feedback form.</strong> {{ errorMessage(error) }}</div>
-    </div>
+    <AppAlert v-if="error" title="Could not load its feedback form.">{{
+      errorMessage(error)
+    }}</AppAlert>
     <template v-else-if="app">
-      <p class="cluster gap-3 text-s">
+      <p class="cluster gap-3">
         <!-- A tone only where the owner is needed: unread feedback, and a form so full that it
              turns feedback away. -->
-        <NuxtLink :to="`/p/${project.id}/feedback`" class="link cluster gap-2"
-          ><span v-if="app.newCount" class="dot" data-tone="warning" aria-hidden="true"></span
-          >{{ app.newCount ? `${formatCount(app.newCount)} new` : 'Inbox' }}</NuxtLink
-        >
-        <span v-if="app.full" class="cluster gap-2"
-          ><span class="dot" data-tone="warning" aria-hidden="true"></span>full</span
-        >
+        <NuxtLink :to="`/p/${project.id}/feedback`" class="link">
+          <StateDot v-if="app.newCount" tone="warning"
+            >{{ formatCount(app.newCount) }} new</StateDot
+          >
+          <template v-else>Inbox</template>
+        </NuxtLink>
+        <StateDot v-if="app.full" tone="warning">full</StateDot>
         <span v-else-if="!app.enabled" class="text-muted">paused</span>
         <NuxtLink :to="`/p/${project.id}/feedback/form`" class="link">Form settings</NuxtLink>
       </p>
       <EmbedCode :code="embedSnippet(app, origin)" />
     </template>
-    <template v-else-if="data">
-      <p class="text-s text-muted">
-        Not collecting feedback yet. Start, and you get a form to embed in its pages.
-      </p>
-      <p>
-        <button
-          type="button"
-          class="btn"
-          data-size="s"
-          :disabled="pending"
-          :aria-busy="pending || undefined"
-          @click="start"
-        >
-          Collect feedback
-        </button>
-      </p>
-      <div v-if="startError" class="alert" data-tone="danger" role="alert">
-        <div><strong>Could not start collecting feedback.</strong> {{ startError }}</div>
-      </div>
-    </template>
+    <PanelStart
+      v-else-if="data"
+      label="Collect feedback"
+      failed="Could not start collecting feedback."
+      :start="start"
+    >
+      Not collecting feedback yet. Start, and you get a form to embed in its pages.
+    </PanelStart>
   </div>
 </template>
