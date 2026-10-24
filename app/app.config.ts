@@ -12,6 +12,6 @@ export default defineAppConfig({
         panel: 'CollatasProject',
       },
     ],
-    nav: [{ to: '/feedback', label: 'Inbox', module: 'collatas' }],
+    nav: [{ to: '/feedback', label: 'Feedback', module: 'collatas' }],
   },
 })

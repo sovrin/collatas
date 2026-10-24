@@ -32,13 +32,16 @@ const origin = useRequestURL().origin
 const embed = computed(() => (app.value ? embedSnippet(app.value, origin) : ''))
 
 const deleteError = ref('')
+const deleting = ref(false)
 async function remove() {
   deleteError.value = ''
+  deleting.value = true
   try {
     await $fetch(`${api}/delete`, { method: 'POST', body: {} })
     await navigateTo(`/p/${project}`)
   } catch (cause) {
     deleteError.value = errorMessage(cause)
+    deleting.value = false
   }
 }
 </script>
@@ -47,15 +50,10 @@ async function remove() {
   <AppPage title="Feedback form" failed="Could not load the feedback form." :error="error">
     <!-- What the form offers takes the room; the code that embeds it sits beside it. -->
     <template v-if="app">
-      <AppAlert v-if="deleteError" title="Could not delete the feedback form.">{{
-        deleteError
-      }}</AppAlert>
-      <AppSection title="Settings">
-        <AppAlert v-if="savedNotice" tone="success" title="Saved."
-          >The form uses the new settings from its next load.</AppAlert
-        >
-        <AppForm :key="JSON.stringify(app)" :app="app" @saved="saved" />
-      </AppSection>
+      <AppAlert v-if="savedNotice" tone="success" title="Saved."
+        >The form uses the new settings from its next load.</AppAlert
+      >
+      <AppForm :key="JSON.stringify(app)" :app="app" @saved="saved" />
     </template>
 
     <template v-if="app" #aside>
@@ -69,15 +67,18 @@ async function remove() {
     </template>
 
     <template v-if="app" #danger>
+      <AppAlert v-if="deleteError" title="Could not delete the feedback form.">{{
+        deleteError
+      }}</AppAlert>
       <span>Stops collecting feedback and removes all of it; the project stays.</span>
       <DangerAction
         label="Delete form"
         :title="`Delete ${id} and its feedback?`"
         :confirm-word="id"
+        :pending="deleting"
         @confirm="remove"
       >
-        Stops collecting feedback for this project and removes all of it. Embedded forms stop
-        working; the project stays. This cannot be undone.
+        Embedded forms stop working. This cannot be undone.
       </DangerAction>
     </template>
   </AppPage>

@@ -199,6 +199,11 @@ describe('submissions', () => {
     expect(getProjectAppSummary(db, 'sonotas')?.full).toBe(false)
     addFeedback(db, 'sonotas', submission(), NOTHING)
     expect(getProjectAppSummary(db, 'sonotas')?.full).toBe(true)
+    expect(collatas.projectStatus!(db, 'sonotas')).toContainEqual({
+      text: 'feedback form full',
+      to: '/p/sonotas/feedback/_form',
+      tone: 'warning',
+    })
     expect(isFull({ maxFeedback: 10, maxStorageMb: 1 }, { count: 1, bytes: 1024 * 1024 })).toBe(
       true,
     )

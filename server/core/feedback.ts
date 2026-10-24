@@ -265,14 +265,6 @@ export function countOpen(db: DatabaseSync, appId: string) {
   ).count
 }
 
-export function countNew(db: DatabaseSync, appId: string) {
-  return (
-    db
-      .prepare("SELECT count(*) AS count FROM feedback WHERE status = 'new' AND app_id = ?")
-      .get(appId) as { count: number }
-  ).count
-}
-
 /** Deletes feedback of any status once its app's retention has passed since its last change:
  *  what people send is personal data and is not kept without end. Returns how many. */
 export function pruneFeedback(db: DatabaseSync, now = Date.now()) {

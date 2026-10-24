@@ -33,7 +33,8 @@ const { data, error, refresh } = await useProjectFetch<FeedbackPage>('/feedback'
   key: INBOX_KEY,
   query: { filter, page, q },
 })
-// Whether the project collects feedback at all, for the empty state.
+// Whether the project collects feedback at all, for the empty state, and its unread count and
+// fullness for the lead.
 const { data: form } = await useProjectFetch<{ app: AppSummary | null }>('/feedback/form')
 
 /** The inbox address for a filter, page or search, leaving out the defaults. Anything new starts
@@ -55,23 +56,19 @@ const searchText = ref(q.value)
 watch(q, (value) => (searchText.value = value))
 const search = () => navigateTo(inbox({ q: searchText.value.trim() }))
 
-/** "4 open", "2 done", "7 in total": what the view holds when nothing in it is new. */
-const countLabel = (count: number) =>
-  `${formatCount(count)} ${filter.value === 'all' ? 'in total' : filter.value}`
-
-// What leads the page: unread feedback in the view, or, with none, how much it holds.
+// What leads the page is what needs the owner, whatever the view: the project's unread feedback,
+// and a form so full it turns feedback away. The filters carry the view's own counts.
 const headline = computed(() => {
-  if (!data.value) return ''
-  if (data.value.newCount) return `${formatCount(data.value.newCount)} new feedback`
-  return filter.value === 'open' && !q.value ? 'Nothing new' : countLabel(data.value.total)
+  const fresh = form.value?.app?.newCount
+  return fresh ? `${formatCount(fresh)} new feedback` : 'Nothing new'
 })
-/** "5 open · the latest 12 min ago": the count the headline leaves out, and, on the first page
- *  (newest first), how fresh the view is. */
+/** "the latest 12 min ago": on the first page (newest first), how fresh the view is. */
 const meta = computed(() => {
-  if (!data.value) return ''
-  const count = countLabel(data.value.total)
-  const latest = page.value === 1 ? data.value.items[0]?.createdAt : undefined
-  return [count !== headline.value ? count : '', latest ? `the latest ${formatAge(latest)}` : '']
+  const latest = page.value === 1 ? data.value?.items[0]?.createdAt : undefined
+  return [
+    form.value?.app?.full ? 'the form is full and turns feedback away' : '',
+    latest ? `the latest ${formatAge(latest)}` : '',
+  ]
     .filter(Boolean)
     .join(' · ')
 })
@@ -99,13 +96,19 @@ const empty = computed(() =>
 
 <template>
   <AppPage
-    title="Inbox"
-    failed="Could not load the inbox."
+    title="Feedback"
+    failed="Could not load the feedback."
     :error="error"
     :retry="refresh"
     :aside-title="asideTitle"
+    :aside-close="slots.aside ? { path: `/p/${project}/feedback`, query: route.query } : undefined"
   >
-    <template v-if="form?.app && data?.items.length" #lead>
+    <template v-if="form?.app" #actions>
+      <NuxtLink :to="`/p/${project}/feedback/_form`" class="btn" data-size="s"
+        >Form settings</NuxtLink
+      >
+    </template>
+    <template v-if="form?.app" #lead>
       <AppLead :title="headline">
         <template v-if="meta" #meta>{{ meta }}</template>
       </AppLead>
@@ -148,7 +151,9 @@ const empty = computed(() =>
         <TransitionGroup :key="view" tag="tbody" name="row" class="relative">
           <template v-for="day in days" :key="day.name">
             <tr>
-              <th scope="colgroup" colspan="3" class="eyebrow">{{ day.name }}</th>
+              <th scope="rowgroup" colspan="3" class="text-xs text-muted weight-600">
+                {{ day.name }}
+              </th>
             </tr>
             <tr
               v-for="item in day.items"

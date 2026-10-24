@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectSummary } from '#nexitas/shared/contracts'
 import type { AppSummary } from '../../../shared/contracts'
-import { errorMessage, formatCount } from '#nexitas/app/lib/format'
+import { errorMessage } from '#nexitas/app/lib/format'
 import { embedSnippet } from '../../lib/embed'
 
 /** collatas' part of a project's page: its feedback form, or a way to start one. */
@@ -26,20 +26,9 @@ async function start() {
       errorMessage(error)
     }}</AppAlert>
     <template v-else-if="app">
-      <p class="cluster gap-3">
-        <!-- A tone only where the owner is needed: unread feedback, and a form so full that it
-             turns feedback away. -->
-        <NuxtLink :to="`/p/${project.id}/feedback`" class="link">
-          <StateDot v-if="app.newCount" tone="warning"
-            >{{ formatCount(app.newCount) }} new</StateDot
-          >
-          <template v-else>Inbox</template>
-        </NuxtLink>
-        <StateDot v-if="app.full" tone="warning">full</StateDot>
-        <span v-else-if="!app.enabled" class="text-muted">paused</span>
-        <NuxtLink :to="`/p/${project.id}/feedback/form`" class="link">Form settings</NuxtLink>
-      </p>
+      <!-- Setup only: what needs the owner (new feedback, a full form) is in the project's status. -->
       <EmbedCode :code="embedSnippet(app, origin)" />
+      <p><NuxtLink :to="`/p/${project.id}/feedback/_form`" class="link">Form settings</NuxtLink></p>
     </template>
     <PanelStart
       v-else-if="data"

@@ -2,13 +2,13 @@
 // part of the status line and of each project. The owner's sign-in, the /api guard, the projects
 // and the database itself are the core's.
 import type { H3Event } from 'h3'
-import type { NexitasModule } from '#nexitas/shared/modules'
+import type { NexitasModule, StatusItem } from '#nexitas/shared/modules'
 import { announceChange } from '#nexitas/server/utils/changes'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { projectCors } from '#nexitas/server/utils/cors'
-import { deleteApp, getApp, getProjectApp } from './apps'
+import { deleteApp, getApp, getProjectApp, getProjectAppSummary } from './apps'
 import { KIND_LABELS } from '../../shared/contracts'
-import { countNew, countOpen, listArrivals, pruneFeedback, pruneSenderKeys } from './feedback'
+import { countOpen, listArrivals, pruneFeedback, pruneSenderKeys } from './feedback'
 import { pruneAttempts } from './limits'
 
 export const collatas: NexitasModule = {
@@ -52,17 +52,19 @@ export const collatas: NexitasModule = {
     announceChange()
   },
   projectStatus: (db, projectId) => {
-    const app = getProjectApp(db, projectId)
+    const app = getProjectAppSummary(db, projectId)
     if (!app) return []
-    const fresh = countNew(db, app.id)
     // The sidebar reads what still waits (new and seen), marked while any of it is new.
     const figure = String(countOpen(db, app.id))
     const to = `/p/${projectId}/feedback`
-    return [
-      fresh
-        ? { text: `${fresh} new feedback`, to, tone: 'warning', figure }
+    const items: StatusItem[] = [
+      app.newCount
+        ? { text: `${app.newCount} new feedback`, to, tone: 'warning', figure }
         : { text: app.enabled ? 'no new feedback' : 'feedback paused', to, figure },
     ]
+    // A full form turns feedback away until some is deleted or its limits are raised.
+    if (app.full) items.push({ text: 'feedback form full', to: `${to}/_form`, tone: 'warning' })
+    return items
   },
   // What people sent since the owner last looked, in their own words, cut to a line.
   projectActivity: (db, projectId, since) =>
