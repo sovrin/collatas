@@ -72,37 +72,36 @@ const NEXT: { status: Status; label: string }[] = [
         <AppAlert v-if="actionError" title="Could not change this feedback.">{{
           actionError
         }}</AppAlert>
-        <!-- The kind names the inspector; its state sits beside what changes it. -->
-        <div class="stack gap-3">
-          <div class="cluster justify-between items-center gap-3">
-            <!-- Done is what most feedback ends as, so it leads, in the module's hue. -->
-            <div ref="statusButtons" class="cluster gap-2">
-              <button
-                v-for="next in NEXT.filter((option) => option.status !== item!.status)"
-                :key="next.status"
-                type="button"
-                class="btn"
-                data-size="s"
-                :data-variant="next.status === 'done' ? 'primary' : undefined"
-                :disabled="pending"
-                :aria-busy="pending || undefined"
-                @click="setStatus(next.status, true)"
-              >
-                {{ next.label }}
-              </button>
-              <a
-                v-if="item.issueLink"
-                :href="item.issueLink"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn"
-                data-size="s"
-                >Make an issue</a
-              >
-            </div>
-            <FeedbackState :status="item.status" />
-          </div>
+        <!-- The kind names the inspector. Read, then act: the state and the message lead, what
+             changes the state follows them. -->
+        <div class="stack gap-2">
+          <FeedbackState :status="item.status" />
           <p class="snippet min-w-0">{{ item.message }}</p>
+        </div>
+        <!-- Done is what most feedback ends as, so it leads, in the module's hue. -->
+        <div ref="statusButtons" class="cluster gap-2">
+          <button
+            v-for="next in NEXT.filter((option) => option.status !== item!.status)"
+            :key="next.status"
+            type="button"
+            class="btn"
+            data-size="s"
+            :data-variant="next.status === 'done' ? 'primary' : undefined"
+            :disabled="pending"
+            :aria-busy="pending || undefined"
+            @click="setStatus(next.status, true)"
+          >
+            {{ next.label }}
+          </button>
+          <a
+            v-if="item.issueLink"
+            :href="item.issueLink"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn"
+            data-size="s"
+            >Make an issue</a
+          >
         </div>
 
         <dl class="properties">

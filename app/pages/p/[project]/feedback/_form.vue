@@ -47,7 +47,12 @@ async function remove() {
 </script>
 
 <template>
-  <AppPage title="Feedback form" failed="Could not load the feedback form." :error="error">
+  <AppPage
+    title="Feedback form"
+    failed="Could not load the feedback form."
+    :error="error"
+    :aside-title="app ? 'Embed' : undefined"
+  >
     <!-- What the form offers takes the room; the code that embeds it sits beside it. -->
     <template v-if="app">
       <AppAlert v-if="savedNotice" tone="success" title="Saved."
@@ -57,13 +62,13 @@ async function remove() {
     </template>
 
     <template v-if="app" #aside>
-      <AppSection title="Embed">
+      <div class="stack gap-3">
         <EmbedCode :code="embed" />
         <small class="text-muted text-s"
           >The form takes its look from the site's aequitas styles and opens wherever you place it,
           for example in a dialog.</small
         >
-      </AppSection>
+      </div>
     </template>
 
     <template v-if="app" #danger>

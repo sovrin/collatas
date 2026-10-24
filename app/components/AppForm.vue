@@ -47,7 +47,7 @@ async function save() {
 </script>
 
 <template>
-  <form class="stack gap-5" @submit.prevent="save">
+  <form class="stack gap-5 measure" @submit.prevent="save">
     <fieldset :disabled="pending" class="stack gap-5">
       <!-- What every app needs comes first; the rest is behind More settings. -->
       <div class="field">
@@ -194,48 +194,55 @@ async function save() {
             <span v-if="fieldError('maxMessage')" data-error>{{ fieldError('maxMessage') }}</span>
           </div>
 
-          <div class="field">
-            <label for="max-feedback">Hold at most</label>
-            <div class="cluster gap-3 flex-nowrap">
-              <input
-                id="max-feedback"
-                v-model.number="maxFeedback"
-                class="input font-mono text-s w-auto"
-                data-size="s"
-                type="number"
-                min="1"
-                max="100000"
-                :aria-invalid="!!fieldError('maxFeedback') || undefined"
-                aria-describedby="limits-help"
-              />
-              <span class="text-s text-muted">entries</span>
-            </div>
-            <span v-if="fieldError('maxFeedback')" data-error>{{ fieldError('maxFeedback') }}</span>
-          </div>
+          <!-- The two limits are one rule, so they sit on one line under one explanation. -->
+          <div class="stack gap-1">
+            <div class="cluster gap-5 items-start">
+              <div class="field">
+                <label for="max-feedback">Hold at most</label>
+                <div class="cluster gap-3 flex-nowrap">
+                  <input
+                    id="max-feedback"
+                    v-model.number="maxFeedback"
+                    class="input font-mono text-s w-auto"
+                    data-size="s"
+                    type="number"
+                    min="1"
+                    max="100000"
+                    :aria-invalid="!!fieldError('maxFeedback') || undefined"
+                    aria-describedby="limits-help"
+                  />
+                  <span class="text-s text-muted">entries</span>
+                </div>
+                <span v-if="fieldError('maxFeedback')" data-error>{{
+                  fieldError('maxFeedback')
+                }}</span>
+              </div>
 
-          <div class="field">
-            <label for="max-storage">and at most</label>
-            <div class="cluster gap-3 flex-nowrap">
-              <input
-                id="max-storage"
-                v-model.number="maxStorageMb"
-                class="input font-mono text-s w-auto"
-                data-size="s"
-                type="number"
-                min="1"
-                max="10240"
-                :aria-invalid="!!fieldError('maxStorageMb') || undefined"
-                aria-describedby="limits-help"
-              />
-              <span class="text-s text-muted">MB of text</span>
+              <div class="field">
+                <label for="max-storage">and at most</label>
+                <div class="cluster gap-3 flex-nowrap">
+                  <input
+                    id="max-storage"
+                    v-model.number="maxStorageMb"
+                    class="input font-mono text-s w-auto"
+                    data-size="s"
+                    type="number"
+                    min="1"
+                    max="10240"
+                    :aria-invalid="!!fieldError('maxStorageMb') || undefined"
+                    aria-describedby="limits-help"
+                  />
+                  <span class="text-s text-muted">MB of text</span>
+                </div>
+                <span v-if="fieldError('maxStorageMb')" data-error>{{
+                  fieldError('maxStorageMb')
+                }}</span>
+              </div>
             </div>
-            <small id="limits-help"
+            <small id="limits-help" class="text-muted text-s"
               >When either is reached, the form turns feedback away until some is deleted or
               expires, so a flood cannot fill the disk.</small
             >
-            <span v-if="fieldError('maxStorageMb')" data-error>{{
-              fieldError('maxStorageMb')
-            }}</span>
           </div>
 
           <label><input v-model="enabled" type="checkbox" /> Accept feedback</label>
