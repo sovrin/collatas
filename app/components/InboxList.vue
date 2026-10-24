@@ -29,13 +29,12 @@ const view = computed(() => `${filter.value}|${page.value}|${q.value}`)
 
 // Under a known key, so the entry beside the list can refresh it when it changes the entry's state
 // (a ref to this component is not ready before its awaits resolve).
-const { data, error, refresh } = await useProjectFetch<FeedbackPage>('/feedback', {
-  key: INBOX_KEY,
-  query: { filter, page, q },
-})
-// Whether the project collects feedback at all, for the empty state, and its unread count and
-// fullness for the lead.
-const { data: form } = await useProjectFetch<{ app: AppSummary | null }>('/feedback/form')
+// Both at once: the page waits for one round trip, not two. The form says whether the project
+// collects feedback at all, for the empty state, and its unread count and fullness for the lead.
+const [{ data, error, refresh }, { data: form }] = await Promise.all([
+  useProjectFetch<FeedbackPage>('/feedback', { key: INBOX_KEY, query: { filter, page, q } }),
+  useProjectFetch<{ app: AppSummary | null }>('/feedback/form'),
+])
 
 /** The inbox address for a filter, page or search, leaving out the defaults. Anything new starts
  *  on the first page. */
