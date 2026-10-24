@@ -8,6 +8,7 @@ export default defineAppConfig({
         label: 'Feedback',
         description: 'A feedback form for your sites, and an inbox for what it collects.',
         icon: 'chat-dots',
+        accent: 'orange',
         panel: 'CollatasProject',
       },
     ],

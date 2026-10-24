@@ -149,11 +149,11 @@ describe('projects', () => {
     expect(collatas.projectStatus!(db, 'bare')).toEqual([])
     createApp(db, sonotas)
     expect(collatas.projectStatus!(db, 'sonotas')).toEqual([
-      { text: 'no new feedback', to: '/p/sonotas/feedback' },
+      { text: 'no new feedback', to: '/p/sonotas/feedback', figure: '0' },
     ])
     addFeedback(db, 'sonotas', submission(), NOTHING)
     expect(collatas.projectStatus!(db, 'sonotas')).toEqual([
-      { text: '1 new feedback', to: '/p/sonotas/feedback', tone: 'warning' },
+      { text: '1 new feedback', to: '/p/sonotas/feedback', tone: 'warning', figure: '1' },
     ])
     expect(addApp(db, { ...sonotas, id: 'second' })).toBe(false)
     collatas.deleteProject!(db, 'sonotas')

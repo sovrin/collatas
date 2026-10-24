@@ -28,3 +28,6 @@ export function excerpt(message: string) {
       ?.trim() ?? message
   )
 }
+
+/** The inbox list's data key: the entry beside it refreshes the list through it. */
+export const INBOX_KEY = 'collatas-inbox'

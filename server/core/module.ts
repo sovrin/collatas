@@ -7,7 +7,8 @@ import { announceChange } from '#nexitas/server/utils/changes'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { projectCors } from '#nexitas/server/utils/cors'
 import { deleteApp, getApp, getProjectApp } from './apps'
-import { countNew, pruneFeedback, pruneSenderKeys } from './feedback'
+import { KIND_LABELS } from '../../shared/contracts'
+import { countNew, countOpen, listArrivals, pruneFeedback, pruneSenderKeys } from './feedback'
 import { pruneAttempts } from './limits'
 
 export const collatas: NexitasModule = {
@@ -54,13 +55,23 @@ export const collatas: NexitasModule = {
     const app = getProjectApp(db, projectId)
     if (!app) return []
     const fresh = countNew(db, app.id)
+    // The sidebar reads what still waits (new and seen), marked while any of it is new.
+    const figure = String(countOpen(db, app.id))
     const to = `/p/${projectId}/feedback`
     return [
       fresh
-        ? { text: `${fresh} new feedback`, to, tone: 'warning' }
-        : { text: app.enabled ? 'no new feedback' : 'feedback paused', to },
+        ? { text: `${fresh} new feedback`, to, tone: 'warning', figure }
+        : { text: app.enabled ? 'no new feedback' : 'feedback paused', to, figure },
     ]
   },
+  // What people sent since the owner last looked, in their own words, cut to a line.
+  projectActivity: (db, projectId, since) =>
+    listArrivals(db, projectId, since).map((item) => ({
+      at: item.at,
+      title: KIND_LABELS[item.kind],
+      detail: item.message.length > 140 ? `${item.message.slice(0, 140)}…` : item.message,
+      to: `/p/${projectId}/feedback/${item.id}`,
+    })),
   // Its feedback goes with the app.
   deleteProject: (db, projectId) => {
     const app = getProjectApp(db, projectId)

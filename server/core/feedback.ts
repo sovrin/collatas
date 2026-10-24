@@ -254,6 +254,17 @@ export function deleteFeedback(db: DatabaseSync, projectId: string, id: string) 
 }
 
 /** An app's unread feedback. */
+/** What still waits for the owner: new and seen, neither done nor spam. */
+export function countOpen(db: DatabaseSync, appId: string) {
+  return (
+    db
+      .prepare(
+        "SELECT count(*) AS count FROM feedback WHERE status IN ('new', 'seen') AND app_id = ?",
+      )
+      .get(appId) as { count: number }
+  ).count
+}
+
 export function countNew(db: DatabaseSync, appId: string) {
   return (
     db
@@ -289,4 +300,17 @@ export function issueLink(app: AppConfig, item: FeedbackItem) {
   // GitHub refuses very long URLs; the message is the part that can be trimmed.
   url.searchParams.set('body', body.length > 6000 ? `${body.slice(0, 6000)}…` : body)
   return url.toString()
+}
+
+/** Feedback that arrived for the project since `since`, newest first, spam left out: the news on
+ *  its overview. */
+export function listArrivals(db: DatabaseSync, projectId: string, since: number) {
+  return db
+    .prepare(
+      `SELECT f.id, f.kind, f.message, f.created_at AS at FROM feedback f
+      JOIN apps a ON a.id = f.app_id
+      WHERE a.project_id = ? AND f.created_at > ? AND f.status != 'spam'
+      ORDER BY f.created_at DESC LIMIT 30`,
+    )
+    .all(projectId, since) as { id: string; kind: Kind; message: string; at: number }[]
 }

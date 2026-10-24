@@ -45,18 +45,6 @@ async function remove() {
 
 <template>
   <AppPage title="Feedback form" failed="Could not load the feedback form." :error="error">
-    <template v-if="app" #actions>
-      <DangerAction
-        label="Delete form"
-        :title="`Delete ${id} and its feedback?`"
-        :confirm-word="id"
-        @confirm="remove"
-      >
-        Stops collecting feedback for this project and removes all of it. Embedded forms stop
-        working; the project stays. This cannot be undone.
-      </DangerAction>
-    </template>
-
     <!-- What the form offers takes the room; the code that embeds it sits beside it. -->
     <template v-if="app">
       <AppAlert v-if="deleteError" title="Could not delete the feedback form.">{{
@@ -78,6 +66,19 @@ async function remove() {
           for example in a dialog.</small
         >
       </AppSection>
+    </template>
+
+    <template v-if="app" #danger>
+      <span>Stops collecting feedback and removes all of it; the project stays.</span>
+      <DangerAction
+        label="Delete form"
+        :title="`Delete ${id} and its feedback?`"
+        :confirm-word="id"
+        @confirm="remove"
+      >
+        Stops collecting feedback for this project and removes all of it. Embedded forms stop
+        working; the project stays. This cannot be undone.
+      </DangerAction>
     </template>
   </AppPage>
 </template>
