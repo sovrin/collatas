@@ -77,8 +77,8 @@ function acceptPage(app: AppConfig, page: string | undefined) {
   if (!app.sendPage || !page) return null
   try {
     const url = new URL(page)
-    url.hash = '' // never sent to a server, and often holds tokens
-    return app.origins.includes(url.origin) ? url.href : null
+    // The query and hash often hold tokens or emails: only the page's address is kept.
+    return app.origins.includes(url.origin) ? url.origin + url.pathname : null
   } catch {
     return null
   }

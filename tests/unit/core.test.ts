@@ -309,12 +309,12 @@ describe('retention', () => {
 
 describe('links', () => {
   it("keep the page only from the app's own sites, and only when it sends pages", () => {
-    const page = 'https://sonotas.example.com/?s=abc#access_token=secret'
+    const page = 'https://sonotas.example.com/?reset=abc&email=a@b.c#access_token=secret'
     const accepted = (overrides: Partial<Submission>, app = sonotas) =>
       'error' in acceptSubmission(app, submission(overrides))
         ? null
         : (acceptSubmission(app, submission(overrides)) as { page: string | null }).page
-    expect(accepted({ page })).toBe('https://sonotas.example.com/?s=abc')
+    expect(accepted({ page })).toBe('https://sonotas.example.com/')
     expect(accepted({ page: 'https://evil.example/?s=abc' })).toBeNull()
     expect(accepted({ page: 'not a url' })).toBeNull()
     expect(accepted({ page }, { ...sonotas, sendPage: false })).toBeNull()

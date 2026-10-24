@@ -1,6 +1,6 @@
 // A form token says "this form was fetched from collatas for this app, a moment ago". It is not a
 // secret the sender keeps: it makes a bot fetch the form first, wait like a person would, and use
-// it within the hour, after which rate limits do the rest.
+// it within two hours, after which rate limits do the rest.
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 const MIN_AGE = 3 * 1000

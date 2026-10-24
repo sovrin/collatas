@@ -1,5 +1,6 @@
 // Tells something outside collatas (ntfy, n8n, a script) about new feedback. The payload is a
 // contract like /v1: fields are only added, never renamed or removed.
+import { createHmac } from 'node:crypto'
 import type { Accepted } from '../core/feedback'
 import type { Submission } from '../../shared/contracts'
 import { nexitasOrigin } from '#nexitas/server/utils/nexitas'
@@ -25,10 +26,17 @@ export function sendFeedbackWebhook(
     page,
     url: `${nexitasOrigin()}/p/${app.projectId}/feedback/${id}`,
   }
+  const body = JSON.stringify(payload)
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  // With a shared secret the receiver can tell collatas' posts from anyone else's.
+  const secret = process.env.COLLATAS_WEBHOOK_SECRET
+  if (secret)
+    headers['x-collatas-signature'] =
+      `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`
   fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers,
+    body,
     signal: AbortSignal.timeout(5000),
   })
     .then((response) => {

@@ -25,8 +25,8 @@ owner               ── /p/<project>/feedback         its inbox, each feedbac
   sites (origins), set on the project, may show the form; the app's own settings are which kinds it
   offers (a problem, an idea, something else), which context fields the
   site may send along (e.g. `version`), whether it sends the address of the page the form is on
-  (so each feedback can open it), a GitHub repository for a prefilled issue, and how long done
-  and spam feedback is kept.
+  (without its query or hash, so each feedback can open it), a GitHub repository for a prefilled
+  issue, and how long done and spam feedback is kept.
 - **The form component** comes from collatas itself and takes its look from the site's aequitas
   styles. The project's page shows the snippet to embed:
 
@@ -85,6 +85,9 @@ short sender tag, the same for one sender's feedback to one app on one UTC day; 
 the next day, after which the tag leads back to no one. The inbox searches messages, emails, sender
 tags, context and pages; a sender tag links to its search.
 
+The sender key lives in the database beside the hashes, so a copy of it can recover the IPv4
+senders of the current day and of the live rate-limit rows: treat back-ups as personal data.
+
 ## Webhook
 
 Set `COLLATAS_WEBHOOK_URL` and every new feedback is posted there as JSON, once, without waiting
@@ -110,6 +113,10 @@ inline templates; `auth` is `Bearer <token>` in base64 without the trailing `=`:
 ```
 https://ntfy.example.com/collatas?tpl=yes&t={{.kind}}%20for%20{{.app.name}}&m={{.message}}&auth=…
 ```
+
+Set `COLLATAS_WEBHOOK_SECRET` too and each post carries `X-Collatas-Signature: sha256=<hex>`, the
+HMAC-SHA256 of the exact body with that secret; a receiver that checks it knows the post came from
+collatas.
 
 ## Checks
 

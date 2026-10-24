@@ -161,7 +161,7 @@ class CollatasForm extends HTMLElement {
     // shortcut: the list shows the address from when the form was drawn; redraw it on
     // navigation if a site changes its address while the form is open.
     const context = [
-      ...(rules.sendPage ? [['page', location.href] as const] : []),
+      ...(rules.sendPage ? [['page', location.origin + location.pathname] as const] : []),
       ...Object.entries(this.allowedContext()),
     ]
     const send = h(
@@ -254,7 +254,7 @@ class CollatasForm extends HTMLElement {
             message: message.value,
             email: email.value.trim(),
             context: this.allowedContext(),
-            ...(rules.sendPage ? { page: location.href } : {}),
+            ...(rules.sendPage ? { page: location.origin + location.pathname } : {}),
             website: honeypot.value,
           }),
         })
