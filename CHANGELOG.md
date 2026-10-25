@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.0](https://github.com/sovrin/collatas/compare/v0.2.6...v0.3.0) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* the inbox across all apps, /api/inbox and /api/apps/* are gone; the status hook is gone (nexitas shows projectStatus); webhook links point to /p/<id>/feedback/<entry>.
+* run as a module of nexitas, on its shared projects
+
+### Features
+
+* one project's feedback, under its /p/&lt;id&gt; ([24749cb](https://github.com/sovrin/collatas/commit/24749cbdcdadbb1e15eb23dc94af43233206160b))
+* run as a module of nexitas, on its shared projects ([3df2205](https://github.com/sovrin/collatas/commit/3df22055a2cae1f281105617a770e3916a1ceb00))
+* **setup:** the form is set up on the inbox, not the project's overview ([7d7b44d](https://github.com/sovrin/collatas/commit/7d7b44d00666cb44097d0fdd2fc0fd8a9d9c2b95))
+* the console's look: a hue, a sidebar figure and the overview's story ([d2609a9](https://github.com/sovrin/collatas/commit/d2609a91ee9550cd6bc63e6f2fe1d9ef3ae5bb62))
+* the section is Feedback, with its form settings a click away ([71eb83f](https://github.com/sovrin/collatas/commit/71eb83f01603d7b6eeda1e302b593e154f2e6639))
+
+
+### Bug Fixes
+
+* an entry reads before its actions, and the form keeps a measure ([bd3b6f1](https://github.com/sovrin/collatas/commit/bd3b6f1f7cb17fe5288555a285eb23f3c857ecaf))
+* build on the core's toolkit, in its UI patterns ([bc41c91](https://github.com/sovrin/collatas/commit/bc41c91c3af21370fa17d530c0bdd8b30c1150fd))
+* check against a fully installed nexitas ([4d351e0](https://github.com/sovrin/collatas/commit/4d351e0ae8be7c77a7f65e96572613f4908091bb))
+* check against a fully installed nexitas ([f32889d](https://github.com/sovrin/collatas/commit/f32889dba52c5a6c660192b6947ac6cbe8718110))
+* draw every page with the core's page kit ([eb31905](https://github.com/sovrin/collatas/commit/eb319050d5bc554e5a28158240691793a6884314))
+* **feedback:** say plainly that deleting cannot be undone ([8b7be9f](https://github.com/sovrin/collatas/commit/8b7be9f07473514502a66f126f47aced1e7b622c))
+* **security:** store pages without their query, sign the webhook ([da9f5af](https://github.com/sovrin/collatas/commit/da9f5afbcc6d63893e25340e755ef892c5603a7f))
+* the inbox and its form load at once ([2f9d022](https://github.com/sovrin/collatas/commit/2f9d02205a070b39cc86e4de41dd2b338145f73d))
+
 ## [0.2.6](https://github.com/sovrin/collatas/compare/v0.2.5...v0.2.6) (2026-10-17)
 
 
