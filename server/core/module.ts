@@ -1,5 +1,5 @@
 // collatas as a nexitas module: its schema, the public form routes a project's sites call, and its
-// part of the status line and of each project. The owner's sign-in, the /api guard, the projects
+// part of the status line and of each project's story. The owner's sign-in, the /api guard, the projects
 // and the database itself are the core's.
 import type { H3Event } from 'h3'
 import type { NexitasModule, StatusItem } from '#nexitas/shared/modules'
@@ -53,7 +53,7 @@ export const collatas: NexitasModule = {
   },
   projectStatus: (db, projectId) => {
     const app = getProjectAppSummary(db, projectId)
-    if (!app) return []
+    if (!app) return [{ text: 'Not set up', to: `/p/${projectId}/feedback` }]
     // The sidebar reads what still waits (new and seen), marked while any of it is new.
     const figure = String(countOpen(db, app.id))
     const to = `/p/${projectId}/feedback`
@@ -63,7 +63,7 @@ export const collatas: NexitasModule = {
         : { text: app.enabled ? 'no new feedback' : 'feedback paused', to, figure },
     ]
     // A full form turns feedback away until some is deleted or its limits are raised.
-    if (app.full) items.push({ text: 'feedback form full', to: `${to}/_form`, tone: 'warning' })
+    if (app.full) items.push({ text: 'feedback form full', to: `${to}?setup`, tone: 'warning' })
     return items
   },
   // What people sent since the owner last looked, in their own words, cut to a line.

@@ -2,12 +2,14 @@
 import type { AppSummary, FeedbackPage } from '../../shared/contracts'
 import { KIND_LABELS, MAX_SEARCH } from '../../shared/contracts'
 import { INBOX_KEY, excerpt, feedbackStates, kindIcons } from '../lib/feedback'
-import { formatAge, formatCount, formatDayName } from '#nexitas/app/lib/format'
+import { errorMessage, formatAge, formatCount, formatDayName } from '#nexitas/app/lib/format'
+import { embedSnippet } from '../lib/embed'
 
 /** <InboxList :selected="id" aside-title="A problem"><template #aside>…</template></InboxList>
  *  The inbox page: the list in the pane, its filter, search and page in the address. An entry's
  *  page renders it too, with `selected` marking its row and the entry in `aside` (the inspector),
- *  so going through feedback never leaves the list. */
+ *  so going through feedback never leaves the list. Without an entry, the inspector holds the
+ *  form's setup (?setup): its snippet, its settings and its deletion. */
 defineProps<{ selected?: string; asideTitle?: string }>()
 const slots = defineSlots<{ aside?: () => unknown; danger?: () => unknown }>()
 
@@ -31,10 +33,48 @@ const view = computed(() => `${filter.value}|${page.value}|${q.value}`)
 // (a ref to this component is not ready before its awaits resolve).
 // Both at once: the page waits for one round trip, not two. The form says whether the project
 // collects feedback at all, for the empty state, and its unread count and fullness for the lead.
-const [{ data, error, refresh }, { data: form }] = await Promise.all([
+const [{ data, error, refresh }, { data: form, refresh: refreshForm }] = await Promise.all([
   useProjectFetch<FeedbackPage>('/feedback', { key: INBOX_KEY, query: { filter, page, q } }),
   useProjectFetch<{ app: AppSummary | null }>('/feedback/form'),
 ])
+
+// Setup is the list's own inspector; an open entry takes the inspector instead.
+const setup = useSetup()
+const setupOpen = computed(() => !slots.aside && !!form.value?.app && setup.open.value)
+// The settings form keeps what the owner types while live refreshes change only the counts.
+const settingsKey = computed(() => {
+  const { newCount: _new, totalCount: _total, full: _full, ...settings } = form.value?.app ?? {}
+  return JSON.stringify(settings)
+})
+const origin = useRequestURL().origin
+
+async function start() {
+  await $fetch(`/api/p/${project}/feedback/form/create`, { method: 'POST', body: {} })
+  await refreshForm()
+}
+
+// "Saved." stands until the settings are saved again.
+const savedNotice = ref(false)
+async function saved() {
+  await refreshForm()
+  savedNotice.value = true
+}
+
+const deleting = ref(false)
+const deleteError = ref('')
+async function remove() {
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await $fetch(`/api/p/${project}/feedback/form/delete`, { method: 'POST', body: {} })
+    await Promise.all([refreshForm(), refresh()])
+    await navigateTo(setup.close.value)
+  } catch (cause) {
+    deleteError.value = errorMessage(cause)
+  } finally {
+    deleting.value = false
+  }
+}
 
 /** The inbox address for a filter, page or search, leaving out the defaults. Anything new starts
  *  on the first page. */
@@ -99,20 +139,22 @@ const empty = computed(() =>
     failed="Could not load the feedback."
     :error="error"
     :retry="refresh"
-    :aside-title="asideTitle"
-    :aside-close="slots.aside ? { path: `/p/${project}/feedback`, query: route.query } : undefined"
+    :aside-title="setupOpen ? 'Setup' : asideTitle"
+    :aside-close="
+      slots.aside
+        ? { path: `/p/${project}/feedback`, query: route.query }
+        : setupOpen
+          ? setup.close.value
+          : undefined
+    "
   >
-    <template v-if="form?.app" #actions>
-      <NuxtLink :to="`/p/${project}/feedback/_form`" class="btn" data-size="s"
-        >Form settings</NuxtLink
-      >
-    </template>
+    <template v-if="form?.app && !slots.aside" #actions><SetupLink /></template>
     <template v-if="form?.app" #lead>
       <AppLead :title="headline">
         <template v-if="meta" #meta>{{ meta }}</template>
       </AppLead>
     </template>
-    <template #filters>
+    <template v-if="form?.app" #filters>
       <FilterLinks
         label="Show"
         :options="
@@ -131,11 +173,14 @@ const empty = computed(() =>
       />
     </template>
 
-    <EmptyState v-if="form && !form.app">
-      Feedback is not collected for this project.
-      <NuxtLink :to="`/p/${project}`" class="link">Collect it on its page</NuxtLink>, then embed its
-      form.
-    </EmptyState>
+    <ModuleStart
+      v-if="form && !form.app"
+      label="Collect feedback"
+      failed="Could not start collecting feedback."
+      :start="start"
+    >
+      Not collecting feedback yet. Start, and you get a form to embed in its pages.
+    </ModuleStart>
     <div v-else-if="data?.items.length" class="stack gap-6">
       <DataTable label="Feedback">
         <thead>
@@ -206,6 +251,34 @@ const empty = computed(() =>
     </EmptyState>
 
     <template v-if="slots.aside" #aside><slot name="aside" /></template>
+    <template v-else-if="setupOpen && form?.app" #aside>
+      <div class="stack gap-3">
+        <EmbedCode :code="embedSnippet(form.app, origin)" />
+        <small class="text-muted text-s"
+          >The form takes its look from the site's aequitas styles and opens wherever you place it,
+          for example in a dialog.</small
+        >
+      </div>
+      <AppAlert v-if="savedNotice" tone="success" title="Saved."
+        >The form uses the new settings from its next load.</AppAlert
+      >
+      <AppForm :key="settingsKey" :app="form.app" @saved="saved" @submit="savedNotice = false" />
+    </template>
     <template v-if="slots.danger" #danger><slot name="danger" /></template>
+    <template v-else-if="setupOpen && form?.app" #danger>
+      <span>Stops collecting feedback and removes all of it; the project stays.</span>
+      <DangerAction
+        label="Delete form"
+        :title="`Delete ${form.app.id} and its feedback?`"
+        :confirm-word="form.app.id"
+        :pending="deleting"
+        @confirm="remove"
+      >
+        Embedded forms stop working. This cannot be undone.
+      </DangerAction>
+      <AppAlert v-if="deleteError" class="w-full" title="Could not delete the feedback form.">{{
+        deleteError
+      }}</AppAlert>
+    </template>
   </AppPage>
 </template>

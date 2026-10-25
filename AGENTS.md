@@ -7,10 +7,11 @@ These are collatas' own.
 
 ## Code
 
-- collatas registers itself in `server/core/module.ts` and shows its part of a project in
-  `app/components/global/CollatasProject.vue`.
+- collatas registers itself in `server/core/module.ts`. It is set up on its inbox: Collect
+  feedback while the project has no form, then Setup (`?setup`, in `app/components/InboxList.vue`)
+  with the snippet, the form's settings and its deletion.
 - Its pages are under `/p/<project>/feedback`, its owner API under `/api/p/<project>/feedback`
-  (the form's settings at `…/feedback/form`). A project's app is found from the project, never
+  (the form and its settings at `…/feedback/form`). A project's app is found from the project, never
   named in a URL, and the core functions that read or change one feedback take the project and
   find no other's.
 - Every rule about input lives once, in `shared/contracts.ts` (zod), and is checked at runtime on

@@ -146,7 +146,9 @@ describe('projects', () => {
   it('show their new feedback, and take their app and its feedback when they go', () => {
     const db = database()
     createProject(db, { id: 'bare', name: 'bare', origins: ['https://bare.example.com'] })
-    expect(collatas.projectStatus!(db, 'bare')).toEqual([])
+    expect(collatas.projectStatus!(db, 'bare')).toEqual([
+      { text: 'Not set up', to: '/p/bare/feedback' },
+    ])
     createApp(db, sonotas)
     expect(collatas.projectStatus!(db, 'sonotas')).toEqual([
       { text: 'no new feedback', to: '/p/sonotas/feedback', figure: '0' },
@@ -201,7 +203,7 @@ describe('submissions', () => {
     expect(getProjectAppSummary(db, 'sonotas')?.full).toBe(true)
     expect(collatas.projectStatus!(db, 'sonotas')).toContainEqual({
       text: 'feedback form full',
-      to: '/p/sonotas/feedback/_form',
+      to: '/p/sonotas/feedback?setup',
       tone: 'warning',
     })
     expect(isFull({ maxFeedback: 10, maxStorageMb: 1 }, { count: 1, bytes: 1024 * 1024 })).toBe(

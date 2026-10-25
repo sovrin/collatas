@@ -1,5 +1,5 @@
-// collatas' part of the nexitas shell: its name and icon, its panel on each project, and its
-// section in the nav.
+// collatas' part of the nexitas shell: its name, icon and hue, and its section in the nav. It is
+// set up on its own first page (the inbox's Setup), not on the project's overview.
 export default defineAppConfig({
   nexitas: {
     modules: [
@@ -9,7 +9,6 @@ export default defineAppConfig({
         description: 'A feedback form for your sites, and an inbox for what it collects.',
         icon: 'chat-dots',
         accent: 'orange',
-        panel: 'CollatasProject',
       },
     ],
     nav: [{ to: '/feedback', label: 'Feedback', module: 'collatas' }],

@@ -9,26 +9,26 @@ shell, the database and the projects (each site's name and origins); collatas ad
 
 - a form component a project's pages embed, and the public API it sends to;
 - an inbox per project where the owner reads, sorts and answers its feedback;
-- a Feedback panel on each project's page: start collecting, the snippet, the form's settings.
+- its setup on the inbox: start collecting, then Setup for the snippet and the form's settings.
 
 ## How it fits together
 
 ```
 site (e.g. sonotas) ── GET  /v1/apps/<id>/form      → the form's rules and a form token
                      ── POST /v1/apps/<id>/feedback  → stored, if the rules allow it
-owner               ── /p/<project>/feedback         its inbox, each feedback, its form (signed in)
-                     ── /p/<project>                  Collect feedback, the snippet, Form settings
+owner               ── /p/<project>/feedback         its inbox and each feedback (signed in)
+                     ── /p/<project>/feedback?setup   Collect feedback, then the snippet and settings
                      ── /api/p/<project>/feedback     what those pages read and write
 ```
 
-- **Each project collects feedback on its page** (Collect feedback, then Form settings): its
+- **Each project collects feedback from its inbox** (Collect feedback, then Setup): its
   sites (origins), set on the project, may show the form; the app's own settings are which kinds it
   offers (a problem, an idea, something else), which context fields the
   site may send along (e.g. `version`), whether it sends the address of the page the form is on
   (without its query or hash, so each feedback can open it), a GitHub repository for a prefilled
   issue, and how long done and spam feedback is kept.
 - **The form component** comes from collatas itself and takes its look from the site's aequitas
-  styles. The project's page shows the snippet to embed:
+  styles. The inbox's Setup shows the snippet to embed:
 
   ```html
   <script type="module" src="https://nexitas.example.com/v1/form.js"></script>
