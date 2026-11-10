@@ -1,6 +1,6 @@
-import { submissionSchema } from '../../../../../shared/contracts'
-import { consumeAttempt } from '../../../../core/limits'
-import { secret } from '../../../../core/secrets'
+import { submissionSchema } from '#self/shared/contracts'
+import { consumeAttempt } from '#self/server/core/limits'
+import { secret } from '#self/server/core/secrets'
 import {
   acceptSubmission,
   addFeedback,
@@ -9,12 +9,12 @@ import {
   DAY,
   isFull,
   senderTag,
-} from '../../../../core/feedback'
-import { checkToken } from '../../../../core/token'
-import { routeApp, senderKey } from '../../../../utils/collatas'
+} from '#self/server/core/feedback'
+import { checkToken } from '#self/server/core/token'
+import { routeApp, senderKey } from '#self/server/utils/collatas'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { announceChange } from '#nexitas/server/utils/changes'
-import { sendFeedbackWebhook } from '../../../../utils/webhook'
+import { sendFeedbackWebhook } from '#self/server/utils/webhook'
 
 const PER_SENDER = 5 // per sender and app, every 10 minutes
 const PER_SENDER_DAY = 20 // per sender and app, so one sender cannot use up PER_DAY

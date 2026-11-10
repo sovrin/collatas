@@ -3,14 +3,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
-import { appSettingsSchema, type AppConfig, type Submission } from '../../shared/contracts'
+import { appSettingsSchema, type AppConfig, type Submission } from '#self/shared/contracts'
 import {
   createApp as addApp,
   deleteApp,
   getApp,
   getProjectAppSummary,
   updateApp,
-} from '../../server/core/apps'
+} from '#self/server/core/apps'
 import { openDatabase } from '#nexitas/server/core/database'
 import { createProject } from '#nexitas/server/core/projects'
 import {
@@ -29,11 +29,11 @@ import {
   sameSenderCount,
   senderTag,
   setStatus,
-} from '../../server/core/feedback'
-import { consumeAttempt } from '../../server/core/limits'
-import { collatas } from '../../server/core/module'
-import { secret } from '../../server/core/secrets'
-import { checkToken, issueToken } from '../../server/core/token'
+} from '#self/server/core/feedback'
+import { consumeAttempt } from '#self/server/core/limits'
+import { collatas } from '#self/server/core/module'
+import { secret } from '#self/server/core/secrets'
+import { checkToken, issueToken } from '#self/server/core/token'
 
 const DAY = 24 * 60 * 60 * 1000
 const NOTHING = { context: {}, page: null }

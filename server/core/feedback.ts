@@ -7,7 +7,7 @@ import type {
   Kind,
   Status,
   Submission,
-} from '../../shared/contracts'
+} from '#self/shared/contracts'
 import { secret } from './secrets'
 
 export const DAY = 24 * 60 * 60 * 1000

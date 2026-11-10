@@ -1,5 +1,5 @@
-import { statusSchema } from '../../../../../../shared/contracts'
-import { setStatus } from '../../../../../core/feedback'
+import { statusSchema } from '#self/shared/contracts'
+import { setStatus } from '#self/server/core/feedback'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { requestProject } from '#nexitas/server/utils/projects'
 import { announceChange } from '#nexitas/server/utils/changes'

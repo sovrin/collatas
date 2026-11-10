@@ -7,7 +7,7 @@ import { announceChange } from '#nexitas/server/utils/changes'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { projectCors } from '#nexitas/server/utils/cors'
 import { deleteApp, getApp, getProjectApp, getProjectAppSummary } from './apps'
-import { KIND_LABELS } from '../../shared/contracts'
+import { KIND_LABELS } from '#self/shared/contracts'
 import { countOpen, listArrivals, pruneFeedback, pruneSenderKeys } from './feedback'
 import { pruneAttempts } from './limits'
 

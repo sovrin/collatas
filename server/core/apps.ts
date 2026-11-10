@@ -1,7 +1,7 @@
 // The apps feedback is collected for, one per project: what the form offers. Who may send it is
 // the project's, in nexitas.
 import type { DatabaseSync } from 'node:sqlite'
-import type { AppConfig, AppSettings, AppSummary } from '../../shared/contracts'
+import type { AppConfig, AppSettings, AppSummary } from '#self/shared/contracts'
 import { isFull, STORED_BYTES } from './feedback'
 
 interface AppRow {
