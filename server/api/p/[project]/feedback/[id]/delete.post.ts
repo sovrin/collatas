@@ -1,4 +1,4 @@
-import { deleteFeedback } from '../../../../../core/feedback'
+import { deleteFeedback } from '#self/server/core/feedback'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { requestProject } from '#nexitas/server/utils/projects'
 import { announceChange } from '#nexitas/server/utils/changes'

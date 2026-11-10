@@ -1,9 +1,9 @@
-import type { FeedbackPage } from '../../../../../shared/contracts'
-import { getProjectApp } from '../../../../core/apps'
-import { feedbackPage } from '../../../../core/feedback'
+import type { FeedbackPage } from '#self/shared/contracts'
+import { getProjectApp } from '#self/server/core/apps'
+import { feedbackPage } from '#self/server/core/feedback'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { requestProject } from '#nexitas/server/utils/projects'
-import { inboxFilter, inboxSearch } from '../../../../utils/inbox'
+import { inboxFilter, inboxSearch } from '#self/server/utils/inbox'
 
 const PAGE_SIZE = 50
 

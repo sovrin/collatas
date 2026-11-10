@@ -1,7 +1,7 @@
-import { KIND_LABELS, type FormRules } from '../../../../../shared/contracts'
-import { secret } from '../../../../core/secrets'
-import { issueToken } from '../../../../core/token'
-import { routeApp } from '../../../../utils/collatas'
+import { KIND_LABELS, type FormRules } from '#self/shared/contracts'
+import { secret } from '#self/server/core/secrets'
+import { issueToken } from '#self/server/core/token'
+import { routeApp } from '#self/server/utils/collatas'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 
 // What the form component renders, and a token it must send back. The security middleware has

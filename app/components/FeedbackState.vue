@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Status } from '../../shared/contracts'
-import { feedbackStates } from '../lib/feedback'
+import type { Status } from '#self/shared/contracts'
+import { feedbackStates } from '#self/app/lib/feedback'
 // The state as a marker and a word; the word takes the tone's ink only when it needs the owner.
 const props = defineProps<{ status: Status }>()
 const state = computed(() => feedbackStates[props.status])
