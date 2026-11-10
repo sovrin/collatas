@@ -2,8 +2,8 @@ import { createHmac } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { nexitasDatabase, requestSender } from '#nexitas/server/utils/nexitas'
 import { requestProject } from '#nexitas/server/utils/projects'
-import { getApp, getProjectApp } from '../core/apps'
-import { secret } from '../core/secrets'
+import { getApp, getProjectApp } from '#self/server/core/apps'
+import { secret } from '#self/server/core/secrets'
 
 /** Who is sending feedback, for its limits and its sender tag: the sender's network, keyed with
  *  a secret, so the database never holds an IP address. */

@@ -1,4 +1,4 @@
-import type { AppConfig } from '../../shared/contracts'
+import type { AppConfig } from '#self/shared/contracts'
 
 // Split so a component's own <script> block is not closed by the string.
 const SCRIPT_END = '</' + 'script>'

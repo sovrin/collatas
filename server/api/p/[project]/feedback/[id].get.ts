@@ -1,6 +1,6 @@
-import type { FeedbackDetail } from '../../../../../shared/contracts'
-import { getApp } from '../../../../core/apps'
-import { getFeedback, issueLink, sameSenderCount } from '../../../../core/feedback'
+import type { FeedbackDetail } from '#self/shared/contracts'
+import { getApp } from '#self/server/core/apps'
+import { getFeedback, issueLink, sameSenderCount } from '#self/server/core/feedback'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { requestProject } from '#nexitas/server/utils/projects'
 

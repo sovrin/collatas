@@ -1,5 +1,5 @@
-import { APP_DEFAULTS } from '../../../../../../shared/contracts'
-import { createApp } from '../../../../../core/apps'
+import { APP_DEFAULTS } from '#self/shared/contracts'
+import { createApp } from '#self/server/core/apps'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { requestProject } from '#nexitas/server/utils/projects'
 import { announceChange } from '#nexitas/server/utils/changes'

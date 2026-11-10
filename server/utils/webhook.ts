@@ -1,8 +1,8 @@
 // Tells something outside collatas (ntfy, n8n, a script) about new feedback. The payload is a
 // contract like /v1: fields are only added, never renamed or removed.
 import { createHmac } from 'node:crypto'
-import type { Accepted } from '../core/feedback'
-import type { Submission } from '../../shared/contracts'
+import type { Accepted } from '#self/server/core/feedback'
+import type { Submission } from '#self/shared/contracts'
 import { nexitasOrigin } from '#nexitas/server/utils/nexitas'
 
 /** Posts new feedback to COLLATAS_WEBHOOK_URL, if set. Never awaited: the visitor's answer

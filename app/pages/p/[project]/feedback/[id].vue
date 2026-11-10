@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { FeedbackDetail, Status } from '../../../../../shared/contracts'
-import { KIND_LABELS } from '../../../../../shared/contracts'
+import type { FeedbackDetail, Status } from '#self/shared/contracts'
+import { KIND_LABELS } from '#self/shared/contracts'
 import { errorMessage, formatTime } from '#nexitas/app/lib/format'
-import { INBOX_KEY } from '../../../../lib/feedback'
+import { INBOX_KEY } from '#self/app/lib/feedback'
 
 const project = useProject().id.value
 const route = useRoute()

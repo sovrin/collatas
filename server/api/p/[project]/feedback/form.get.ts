@@ -1,5 +1,5 @@
-import type { AppSummary } from '../../../../../shared/contracts'
-import { getProjectAppSummary } from '../../../../core/apps'
+import type { AppSummary } from '#self/shared/contracts'
+import { getProjectAppSummary } from '#self/server/core/apps'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { requestProject } from '#nexitas/server/utils/projects'
 

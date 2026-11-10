@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { AppSummary, FeedbackPage } from '../../shared/contracts'
-import { KIND_LABELS, MAX_SEARCH } from '../../shared/contracts'
-import { INBOX_KEY, excerpt, feedbackStates, kindIcons } from '../lib/feedback'
+import type { AppSummary, FeedbackPage } from '#self/shared/contracts'
+import { KIND_LABELS, MAX_SEARCH } from '#self/shared/contracts'
+import { INBOX_KEY, excerpt, feedbackStates, kindIcons } from '#self/app/lib/feedback'
 import { errorMessage, formatAge, formatCount, formatDayName } from '#nexitas/app/lib/format'
-import { embedSnippet } from '../lib/embed'
+import { embedSnippet } from '#self/app/lib/embed'
 
 /** <InboxList :selected="id" aside-title="A problem"><template #aside>…</template></InboxList>
  *  The inbox page: the list in the pane, its filter, search and page in the address. An entry's

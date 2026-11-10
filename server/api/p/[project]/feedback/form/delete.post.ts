@@ -1,5 +1,5 @@
-import { deleteApp } from '../../../../../core/apps'
-import { projectApp } from '../../../../../utils/collatas'
+import { deleteApp } from '#self/server/core/apps'
+import { projectApp } from '#self/server/utils/collatas'
 import { nexitasDatabase } from '#nexitas/server/utils/nexitas'
 import { announceChange } from '#nexitas/server/utils/changes'
 

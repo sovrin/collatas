@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AppConfig, AppSettings, ContextField } from '../../shared/contracts'
-import { KIND_LABELS, KINDS, MAX_MESSAGE } from '../../shared/contracts'
+import type { AppConfig, AppSettings, ContextField } from '#self/shared/contracts'
+import { KIND_LABELS, KINDS, MAX_MESSAGE } from '#self/shared/contracts'
 
 /** Changes what an app's form offers. Its name and the sites that may send are its project's,
  *  set on the project's page, so nothing about an app is configured in files. */
